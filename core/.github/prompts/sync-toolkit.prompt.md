@@ -480,14 +480,33 @@ this naturally: a filled-in line counts as a change on the `MINE` side, and only
      tie or a file with no line breaks counts as `LF`. If `MINE` has both kinds (mixed), note
      "mixed line endings normalized" for the final summary.
 
+   **Byte-level only — never decode file content as text.** Newline conversion in this workflow
+   (here, in the marker guard, and in Step 4) must operate on the raw byte array: the only bytes
+   ever touched are `0x0D` (CR) and `0x0A` (LF). Do **not** use `ReadAllText` / `WriteAllText` /
+   `Get-Content` / `Set-Content` / `Encoding.GetString` / `Encoding.GetBytes` on file content, with
+   *any* encoding: `ReadAllText` auto-detects and strips a BOM whatever encoding is passed, and a
+   single-byte codec such as Latin-1 would turn every character above U+00FF (e.g. an em-dash) into
+   `?` on write-back. Working on bytes leaves a UTF-8 BOM and every multi-byte UTF-8 sequence
+   (which never contains `0x0D`/`0x0A`) untouched. Algorithm for **CRLF -> LF**: read all bytes;
+   copy them to a new byte list, skipping each `0x0D` that is immediately followed by `0x0A`; write
+   the list back with `WriteAllBytes`. A lone `0x0D` not followed by `0x0A` is kept as-is.
+
+   **UTF-16 / UTF-32 guard.** These encodings store newlines as `0D 00 0A 00` (or wider), so the
+   byte-level conversion below does not apply and would corrupt them. If `MINE`, `BASE` or `THEIRS`
+   starts with `FF FE`, `FE FF`, `FF FE 00 00` or `00 00 FE FF`, do not normalize or merge that
+   file: handle it as `NEEDS MANUAL RESOLUTION (UTF-16/32 file, not merged)` (Step 2 table).
+
    Make each copy with one `run_in_terminal` call per file (create the target folder first with
-   `New-Item -ItemType Directory -Force`). The latin-1 encoding keeps every non-line-ending byte
-   unchanged, so no character is re-encoded or loses a BOM; no pipe or redirection is used:
+   `New-Item -ItemType Directory -Force`); no pipe or redirection is used. Illustrative snippet
+   (tested; adapt the syntax if needed, but keep the algorithm above):
    ```powershell
-   $e=[Text.Encoding]::GetEncoding(28591); [IO.File]::WriteAllText("<dest>", [IO.File]::ReadAllText("<src>",$e).Replace("`r`n","`n"), $e)
+   $b=[IO.File]::ReadAllBytes("<src>"); $o=New-Object 'System.Collections.Generic.List[byte]' $b.Length; for($i=0;$i -lt $b.Length;$i++){ if($b[$i] -eq 13 -and $i+1 -lt $b.Length -and $b[$i+1] -eq 10){continue}; $o.Add($b[$i]) }; [IO.File]::WriteAllBytes("<dest>",$o.ToArray())
    ```
-   Detect `MINE`'s style with
-   `$t=[IO.File]::ReadAllText("<MINE>",$e); ([regex]::Matches($t,"\r\n")).Count; ([regex]::Matches($t,"(?<!\r)\n")).Count`.
+   Detect `MINE`'s style by counting bytes: every `0x0A` preceded by `0x0D` is a CRLF, every other
+   `0x0A` is a bare LF:
+   ```powershell
+   $b=[IO.File]::ReadAllBytes("<MINE>"); $c=0;$l=0; for($i=0;$i -lt $b.Length;$i++){ if($b[$i] -eq 10){ if($i -gt 0 -and $b[$i-1] -eq 13){$c++}else{$l++} } }; "CRLF=$c LF=$l"
+   ```
    Every "identical" / "differs" test in Steps 2 and 4 means: compare the **normalized** copies
    (`(Get-FileHash -LiteralPath a).Hash -eq (Get-FileHash -LiteralPath b).Hash`), never the
    originals. The normalized copies live only in `<work>`; the original `BASE`, `THEIRS` and
@@ -502,6 +521,7 @@ and whether its baseline entry is refreshed (see Step 6):
 |---|---|---|---|
 | `MINE` does not exist (already flagged as a new/missing Tier 2 file in Update Mode Step 3, or deleted by the user) | Nothing to merge. | `not present in project` | add / refresh |
 | `BASE` does not exist (new Tier 2 file, or damaged baseline) | No common ancestor, so no 3-way merge is possible. If the normalized `MINE` is identical to the normalized `THEIRS` after the install placeholder substitutions, outcome `unchanged`. Otherwise copy `THEIRS` next to the project file as `<project-path>.toolkit-new` (overwriting an earlier `.toolkit-new`) and do not touch `MINE`. **Upstream changes in `.toolkit-new` are NOT in `MINE`** — see the risk note below the table. | `NO MERGE BASE — NEEDS MANUAL RESOLUTION (compare manually)` | add |
+| `MINE`, `BASE` or `THEIRS` is UTF-16/UTF-32 (starts with a `FF FE` / `FE FF` / `00 00 FE FF` BOM; see Step 1 item 3) | Byte-level newline handling is not valid for these encodings. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (UTF-16/32 file, not merged)` | **keep as is** (not refreshed) |
 | `MINE` still contains an unresolved conflict-marker block from an earlier sync (the full triple, in order — see **Marker guard** below) | Do not merge on top of markers. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (markers from a previous sync, not merged)` | **keep as is** (not refreshed) |
 | Normalized `BASE` and normalized `THEIRS` are identical | The toolkit did not change this file (any raw difference was line endings only). Leave `MINE` untouched. | `unchanged` | refresh (no-op) |
 | otherwise | Merge (Step 3). | decided in Step 4 | per Step 4 |
@@ -509,9 +529,16 @@ and whether its baseline entry is refreshed (see Step 6):
 **Marker guard.** A file counts as "still containing conflict markers" only if its text contains,
 **in this order**: a line starting `<<<<<<< `, later a line that is exactly `=======`, later a line
 starting `>>>>>>> `. All three must be present and in that order; two of the three, or the same
-three out of order, do not trigger it. Test the normalized `MINE` copy, for example:
+three out of order, do not trigger it. Test the normalized `MINE` copy **on its bytes** (no text
+decoding): split the byte array at each `0x0A`, skip a leading UTF-8 BOM (`EF BB BF`) on line 1,
+and match the ASCII marker bytes line by line with a 3-state scan — state 0 wants a line starting
+with seven `<` (0x3C) then a space; state 1 wants a line that is exactly seven `=` (0x3D); state 2
+wants a line starting with seven `>` (0x3E) then a space. Fired = state 3 reached; the matched line
+numbers are the three line numbers recorded. Illustrative snippet (tested):
 ```powershell
-[regex]::IsMatch([IO.File]::ReadAllText("<work>/mine/<project-path>"), '(?ms)^<<<<<<< .*?^=======$.*?^>>>>>>> ')
+$b=[IO.File]::ReadAllBytes("<work>/mine/<project-path>"); $st=0; if($b.Length -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF){$st=3}; $state=0; $hits=@(); $ln=1
+for($i=$st;$i -le $b.Length;$i++){ if($i -eq $b.Length -or $b[$i] -eq 10){ $len=$i-$st; $ch=60+$state; $ok=$len -ge 7; for($k=0;$ok -and $k -lt 7;$k++){ if($b[$st+$k] -ne $ch){$ok=$false} }; if($ok){ if($state -eq 1){$ok=($len -eq 7)}else{$ok=($len -ge 8 -and $b[$st+7] -eq 32)} }; if($ok){$hits+=$ln; $state++; if($state -eq 3){break}}; $st=$i+1; $ln++ } }
+"guard fired: $($state -eq 3) lines: $($hits -join ',')"
 ```
 This narrows, but does not eliminate, false positives: a Tier 2 file that documents conflict
 markers in a code block (a tutorial/example containing the full triple) is still flagged. When the
@@ -574,9 +601,12 @@ item 3 (the **normalize → compare → merge → restore** sequence; Step 4 doe
 
 **Restore `MINE`'s line endings before writing anything back.** The merged `merge` copy is LF.
 If `MINE`'s recorded dominant style (Step 1 item 3) is `CRLF`, first convert the `merge` copy to
-CRLF in a separate scratch file (same latin-1 approach, no pipe):
+CRLF in a separate scratch file, again **byte-level only** (no text decoding, no pipe). Algorithm:
+read all bytes of the `merge` copy; copy them to a new byte list, inserting a `0x0D` before every
+`0x0A` that is not already preceded by `0x0D`; write the list with `WriteAllBytes`. BOM bytes and
+multi-byte UTF-8 sequences pass through unchanged. Illustrative snippet (tested):
 ```powershell
-$e=[Text.Encoding]::GetEncoding(28591); [IO.File]::WriteAllText("<work>/out/<project-path>", [IO.File]::ReadAllText("<work>/merge/<project-path>",$e).Replace("`n","`r`n"), $e)
+$b=[IO.File]::ReadAllBytes("<work>/merge/<project-path>"); $o=New-Object 'System.Collections.Generic.List[byte]' ($b.Length+64); for($i=0;$i -lt $b.Length;$i++){ if($b[$i] -eq 10 -and ($i -eq 0 -or $b[$i-1] -ne 13)){$o.Add(13)}; $o.Add($b[$i]) }; [IO.File]::WriteAllBytes("<work>/out/<project-path>",$o.ToArray())
 ```
 (create `<work>/out/...` folders first). If the style is `LF`, the merged `merge` copy is already
 final and is used directly. Never write an LF-only result over a CRLF file, and never leave the
