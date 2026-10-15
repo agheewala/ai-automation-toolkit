@@ -119,8 +119,9 @@ Build the full list of destination files using the **Path mapping** in Shared Co
    folders are not copied.
 3. For every file under `<source>/data-dictionary-tooling/`, the destination is
    `data-dictionary-tooling/<same relative path>`.
-4. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`
-   and `{{PROJECT_SPECIFIC_FIXES}}` substitutions in Step 5.
+4. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
+   `{{PROJECT_SPECIFIC_FIXES}}` and `{{STACK_CHECKLIST}}` (wcag-fix-patterns.md only) substitutions
+   in Step 5.
 
 For each planned destination, check whether it already exists in this project. If it does,
 compare it with the content you would write (including the Step 5 substitutions). Identical →
@@ -141,7 +142,7 @@ step.**
 
 ### Step 5 — Fill sync-owned placeholders
 
-Three placeholders have no generator that owns them, so install fills them directly in the
+Four placeholder occurrences have no generator that owns them, so install fills them directly in the
 project's copies (never in `<source>`, and never in the baseline):
 
 - `{{PROJECT_NAME}}` → the project name from Step 2, in every copied file that contains it.
@@ -153,6 +154,10 @@ project's copies (never in `<source>`, and never in the baseline):
 - `{{PROJECT_SPECIFIC_FIXES}}` in `.ai/governance/custom-fixes.md` → replace with a single
   italic line stating that no project-specific fixes have been recorded yet. That file is
   hand-maintained afterward, per its own note.
+- `{{STACK_CHECKLIST}}` in `.ai/governance/wcag-fix-patterns.md` (only this occurrence — the one
+  in `.ai/behavior/setting.md` is owned by `create-build-settings.prompt.md`) → replace with a
+  single italic line stating that no project-specific accessibility rules have been recorded yet.
+  That file is hand-maintained afterward, per its own note.
 
 Leave every other `{{...}}` token untouched; the generators in Step 6 own them. The only
 exceptions are `{{MODULE_LIST}}`, `{{SHARED_LIBS}}` and `{{STACK_SUMMARY}}`, which are filled in

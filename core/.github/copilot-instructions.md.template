@@ -12,9 +12,9 @@ Every type has a mandatory flow. Deviating from it is not permitted.
 
 | Type | Branch | Build | Reviewers | Output |
 |------|--------|-------|-----------|--------|
-| **Bug** | `BUG/<TicketID>_<Title>` from `Development` | Module-level build | Min 1 | Code + PR |
-| **Enhancement** | `ER/<TicketID>_<Title>` from `Development` | Full project build | Min 1 | Code + PR |
-| **CR** | `CR/<TicketID>_<Title>` from `Development` | Full project build | Min 1 | Code + PR |
+| **Bug** | Branch per {{BRANCH_PREFIX_TABLE}} (Bug type), from `{{BASE_BRANCHES}}` | Module-level build | Min 1 | Code + PR |
+| **Enhancement** | Branch per {{BRANCH_PREFIX_TABLE}} (Enhancement type), from `{{BASE_BRANCHES}}` | Full project build | Min 1 | Code + PR |
+| **CR** | Branch per {{BRANCH_PREFIX_TABLE}} (CR type), from `{{BASE_BRANCHES}}` | Full project build | Min 1 | Code + PR |
 | **Analysis** | ❌ None | ❌ None | ❌ None | Written report in chat only |
 
 ### Per-Type Hard Rules
@@ -22,18 +22,18 @@ Every type has a mandatory flow. Deviating from it is not permitted.
 **Bug**
 - STOP and confirm if more than 3 files need to change
 - Build the affected module only (see `AGENTS.md` Build section and `.ai/behavior/setting.md` for this project's exact commands) unless shared libs are touched
-- Must be on `Development` branch before starting
+- Must be on `{{BASE_BRANCHES}}` branch before starting
 
 **Enhancement**
 - Full project build is mandatory (see `AGENTS.md` Build section for the exact command) — enhancements can affect multiple modules
 - Flag any cross-module impact before writing any code
-- Must be on `Development` branch before starting
+- Must be on `{{BASE_BRANCHES}}` branch before starting
 
 **CR (Change Request)**
 - Full project build is mandatory (see `AGENTS.md` Build section for the exact command)
 - STOP if any shared library (see "Shared libs" in `AGENTS.md` Quick Orientation) change is needed — team lead sign-off required first
 - Minimum 1 reviewer on PR
-- Must be on `Development` branch before starting
+- Must be on `{{BASE_BRANCHES}}` branch before starting
 
 **Analysis**
 - Deliver a written root cause and recommendation report in chat

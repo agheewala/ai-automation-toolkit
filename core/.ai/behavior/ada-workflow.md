@@ -76,7 +76,7 @@ Step 8 — Review (Ask User)
 Step 9 — GitFlow
   ├─ Commit with formatted message (templates/commit-message.md)
   ├─ Push to remote
-  └─ Create PR (templates/pr-template.md) linked to JIRA ticket
+  └─ Create PR (templates/pr-template.md) linked to the ticket in the ticket tracker
 
 Step 10 — Update Tracking
   └─ Update CSV/Excel "Fix" column with status

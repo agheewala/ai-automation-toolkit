@@ -107,14 +107,14 @@ User Input Received
 **Steps:**
 1. Load domain knowledge (`.ai/knowledge-base.md`)
 2. Load governance rules (`.ai/governance/*`)
-3. Fetch Jira ticket (if accessible)
+3. Fetch ticket from the ticket tracker (if accessible)
 4. Pre-code analysis → **WAIT FOR USER CONFIRMATION**
 5. Create branch
 6. Implement fix using domain patterns
 7. Build validation
 8. Show changes → **WAIT FOR "PUSH" APPROVAL**
 9. Push and create PR
-10. Link to Jira
+10. Link PR to the ticket in the ticket tracker
 
 **Invoke:**
 ```
@@ -214,7 +214,7 @@ Description: Account balance showing negative
 ✅ Mode: Bug fix
 
 [Load context...]
-[Fetch Jira...]
+[Fetch ticket...]
 [Analyze scope...]
 
 ANALYSIS SUMMARY
@@ -288,7 +288,7 @@ Please provide:
 ❌ Missing TicketID or Description
 
 Please provide:
-  TicketID: <Jira ID>
+  TicketID: <Ticket ID>
   Type: <Bug|Enhancement|CR|Analysis>
   Description: <What to fix>
 ```
@@ -315,7 +315,7 @@ Please provide valid:
 | `/fixada-file <path>` | ADA Workflow (single file) |
 | `/fixada-folder <path>` | ADA Workflow (all files in folder) |
 | `/fixada-results <url>` | ADA Workflow (fetch from BrowserStack) |
-| `process <TicketID>` | Ticket Processor Workflow (fetch Jira) |
+| `process <TicketID>` | Ticket Processor Workflow (fetch from ticket tracker) |
 | `analyze <TicketID>` | Ticket Processor Workflow (Type=Analysis) |
 
 ---

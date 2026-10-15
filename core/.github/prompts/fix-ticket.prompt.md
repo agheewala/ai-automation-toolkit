@@ -26,7 +26,7 @@ You will be invoked when the user provides a ticket to fix.
 ## Input Format Expected
 
 ```
-TicketID: <Jira ID or link>
+TicketID: <Ticket ID or link>
 Type: <Bug|Enhancement|CR|Analysis>
 Description: <What needs to be fixed>
 ```
@@ -44,7 +44,7 @@ runSubagent(
     
     Execute the full automated workflow:
     1. Load domain knowledge and governance rules
-    2. Fetch Jira ticket
+    2. Fetch ticket from the ticket tracker
     3. Perform pre-code analysis
     4. Get user confirmation
     5. Create branch
@@ -55,7 +55,7 @@ runSubagent(
     10. Wait for 'PUSH' approval
     11. Ask for reviewer emails
     12. Push and create PR
-    13. Provide PR-to-Jira linking instructions
+    13. Provide PR-to-ticket linking instructions
   "
 )
 ```
