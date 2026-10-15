@@ -320,6 +320,10 @@ Please provide valid:
 
 ---
 
+**Purpose:** Unified entry point for all automated fix workflows
+
+---
+
 ## Integration with Existing Agents
 
 This prompt acts as a **router**. It does NOT implement the workflows itself.
