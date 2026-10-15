@@ -41,12 +41,13 @@ Before pushing any branch, confirm all of the following:
 ```
 □ Build passes (per the commands in {{BUILD_SCOPE_RULES}}) — zero errors
 □ Changed files are scoped to the correct module (no cross-module edits without justification)
-□ All new Razor inputs use Html.c* helpers (not raw HTML)
-□ All label text uses AppResources.lblXxx (no hardcoded strings)
 □ CSS changes applied to {{THEME_FOLDERS}}
 □ No inline SQL added to controllers or services
-□ DAOs accessed via factory — not via `new`
-□ AppLogger declared in every modified class
-□ [CustomAuthorize] present on all authenticated controllers
+{{STACK_CHECKLIST}}
 □ No .vscode/mcp.json in the commit (contains API tokens)
 ```
+
+> `{{STACK_CHECKLIST}}` is populated per-project from `stacks/<stack>/notes.md` with the
+> stack's own pre-push conventions (e.g. input-sanitization helpers, i18n/resource-string
+> rules, data-access-layer patterns, logging requirements, authorization attribute
+> conventions) — do not hardcode any single stack's conventions in this `core/` file.
