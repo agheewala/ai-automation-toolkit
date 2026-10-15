@@ -11,6 +11,7 @@
         "generators/create-implementation-patterns.prompt.md",
         "generators/create-knowledge-base.prompt.md",
         "generators/create-scm-workflow.prompt.md",
+        ".github/prompts/sync-toolkit.prompt.md",
         "data-dictionary-tooling/export-schema-catalog.sqlserver.sql",
         "data-dictionary-tooling/export-stored-procedures.sqlserver.sql",
         "stacks/dotnet-mvc/notes.md"

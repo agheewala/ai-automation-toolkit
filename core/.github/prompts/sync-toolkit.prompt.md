@@ -51,7 +51,7 @@ These definitions are used by both modes. Do not redefine them in a mode section
 |---|---|---|
 | Tier 2 entries (e.g. `.github/agents/ticket-processor.agent.md`, `AGENTS.md.template`) | `<source>/core/<entry>` | `<entry>`, with a trailing `.template` suffix stripped (`AGENTS.md.template` → `AGENTS.md`, `.github/copilot-instructions.md.template` → `.github/copilot-instructions.md`) |
 | Tier 1 entries starting `generators/`, `data-dictionary-tooling/`, or `stacks/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
-| Tier 1 entries found under `core/` (none today; future-proofing) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
+| Tier 1 entries found under `core/` (today: `.github/prompts/sync-toolkit.prompt.md`) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
 | Tier 3 patterns (`.ai/knowledge-base.md`, `.ai/data-dictionary/**`) | never copied | produced by generators; **never touched by sync** |
 
 An entry's source location is `<source>/<entry>` if that file exists, otherwise
@@ -81,7 +81,8 @@ and list it in your final report under "Files not classified in manifest.json".
 
 Follow these steps in order. If any step fails, stop and report — do **not** write
 `.ai/.toolkit-sync-state/version.json` unless every step through Step 8 completed (its absence is
-what makes a re-run detect install mode again).
+what makes a re-run detect install mode again). `version.json` is the very last file written, as
+the atomic "install is done" marker.
 
 ### Step 1 — Read the manifest
 
@@ -104,31 +105,36 @@ Ask the user for everything below in a single round, then reuse the answers; do 
 Do not fabricate any of these. If the user does not know one, record it as pending in the final
 report instead of inventing a value.
 
-### Step 3 — Copy `core/`, the stack overlay, and the DB tooling
+### Step 3 — Plan the copy and scan for conflicts (dry run — write nothing)
 
-Using the **Path mapping** in Shared Conventions:
+Build the full list of destination files using the **Path mapping** in Shared Conventions:
 
-1. For **every file under `<source>/core/`** (walk the whole tree; do not copy only the manifest's
-   subset), read it and create it in this project at its `core/`-stripped path, removing a
-   trailing `.template`. Create folders as needed.
-2. Copy every file under `<source>/stacks/<chosen-stack>/` to `stacks/<chosen-stack>/` in this
-   project (skip if the stack is `none`). Other stacks' folders are not copied.
-3. Copy every file under `<source>/data-dictionary-tooling/` to `data-dictionary-tooling/` in this
-   project, verbatim.
-4. Copy files **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}` and
-   `{{PROJECT_SPECIFIC_FIXES}}` substitutions in Step 5.
+1. For **every file under `<source>/core/`** (walk the whole tree; do not plan only the manifest's
+   subset), the destination is its `core/`-stripped path, with a trailing `.template` removed.
+2. For every file under `<source>/stacks/<chosen-stack>/`, the destination is
+   `stacks/<chosen-stack>/<same relative path>` (skip if the stack is `none`). Other stacks'
+   folders are not copied.
+3. For every file under `<source>/data-dictionary-tooling/`, the destination is
+   `data-dictionary-tooling/<same relative path>`.
+4. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`
+   and `{{PROJECT_SPECIFIC_FIXES}}` substitutions in Step 5.
 
-### Step 4 — Handle pre-existing destination files
+For each planned destination, check whether it already exists in this project. If it does,
+compare it with the content you would write (including the Step 5 substitutions). Identical →
+skip silently (expected for this prompt file itself, which the user copied in manually).
+Different → add it to a **conflict list**. **Do not create, modify or overwrite any file in this
+step.**
 
-Before writing any destination file that already exists in this project, compare it with what you
-would write. Identical → skip silently (this is expected for this prompt file itself, which the
-user copied in manually). Different → **do not overwrite silently**: collect all such conflicts,
-show the list, and ask the user, per file or for all, to choose **keep existing** (record it as
-skipped in the report, and note it will not be reflected in the baseline's merge expectations),
-**overwrite**, or **save toolkit version alongside as `<name>.toolkit-new`** for manual merging.
-Apply the choices, then continue.
+### Step 4 — Resolve conflicts, then copy
 
-Perform this check per file as part of Step 3, before each write.
+1. If the conflict list from Step 3 is non-empty, show it and ask the user, per file or for all,
+   to choose **keep existing** (record it as skipped in the report, and note it will not be
+   reflected in the baseline's merge expectations), **overwrite**, or **save toolkit version
+   alongside as `<name>.toolkit-new`** for manual merging. Wait for the answer. (With an explicit
+   `--mode install` over an existing install, every existing destination file is on this list.)
+2. Only now perform the writes planned in Step 3: create every planned destination file (creating
+   folders as needed), applying each conflict choice. Files with no conflict are simply created.
+   Then continue to Step 5.
 
 ### Step 5 — Fill sync-owned placeholders
 
@@ -144,8 +150,8 @@ project's copies (never in `<source>`, and never in the baseline):
   hand-maintained afterward, per its own note.
 
 Leave every other `{{...}}` token untouched; the generators in Step 6 own them. The only
-exceptions are `{{MODULE_LIST}}`, `{{SHARED_LIBS}}` and `{{STACK_SUMMARY}}` in `AGENTS.md`, which
-are filled in Step 6a.
+exceptions are `{{MODULE_LIST}}`, `{{SHARED_LIBS}}` and `{{STACK_SUMMARY}}`, which are filled in
+Step 6a (in every file that contains them).
 
 ### Step 6 — Run the generators, in this verified order
 
@@ -181,12 +187,14 @@ Rules for this order:
   relay that message; this is not an install failure.
 - If any of #1–#6 stops or fails, stop the whole install and report which generator failed and why.
 
-**Step 6a — immediately after generator #1 completes:** fill the three remaining `AGENTS.md` placeholders from the
-now-existing `.ai/knowledge-base.md` (not from re-scanning the code): `{{MODULE_LIST}}` (the
-project's modules/components), `{{SHARED_LIBS}}` (shared libraries and any sign-off rule recorded
-for them; also fill the same token in `.ai/behavior/decision-rules.md`), and `{{STACK_SUMMARY}}`
-(one line: language, framework, UI, database). Use "not found in knowledge base" rather than
-inventing content when it does not say.
+**Step 6a — immediately after generator #1 completes:** fill the three remaining placeholders from
+the now-existing `.ai/knowledge-base.md` (not from re-scanning the code), **in every file of this
+project that contains the token** (search the project's copied files; do not assume a single
+file): `{{MODULE_LIST}}` (the project's modules/components — appears in `AGENTS.md` and
+`.ai/behavior/ada-workflow.md`), `{{SHARED_LIBS}}` (shared libraries and any sign-off rule
+recorded for them — appears in `AGENTS.md` and `.ai/behavior/decision-rules.md`), and
+`{{STACK_SUMMARY}}` (one line: language, framework, UI, database). Use "not found in knowledge
+base" rather than inventing content when it does not say.
 
 ### Step 7 — Make the generators available for later re-runs
 
@@ -198,15 +206,19 @@ commands in the project. To re-run one later, tell Copilot to execute the instru
 
 ### Step 8 — Write the sync state
 
-1. Create `.ai/.toolkit-sync-state/version.json`:
+Order matters: the baseline is written first and `version.json` last, so that `version.json`
+existing always means the baseline is complete.
+
+1. Create `.ai/.toolkit-sync-state/baseline/`. For **every Tier 2 file in the manifest**, copy the
+   file from `<source>/core/<manifest-path>` into `baseline/<manifest-path>` exactly as it is in
+   the source (placeholders unfilled, `.template` suffix kept). Do not copy from this project's
+   filled-in versions. Do not put Tier 1 or Tier 3 files in the baseline. Verify every Tier 2
+   manifest entry now exists in `baseline/` before continuing.
+2. **Last**, create `.ai/.toolkit-sync-state/version.json`:
    ```json
    { "toolkitVersion": "<contents of <source>/VERSION, trimmed>", "stack": "<chosen stack or none>", "syncedAt": "<current ISO 8601 UTC timestamp>" }
    ```
    Use the current date/time available to you; if you cannot determine it, ask the user.
-2. Create `.ai/.toolkit-sync-state/baseline/`. For **every Tier 2 file in the manifest**, copy the
-   file from `<source>/core/<manifest-path>` into `baseline/<manifest-path>` exactly as it is in
-   the source (placeholders unfilled, `.template` suffix kept). Do not copy from this project's
-   filled-in versions. Do not put Tier 1 or Tier 3 files in the baseline.
 
 ### Step 9 — Stop and report
 
