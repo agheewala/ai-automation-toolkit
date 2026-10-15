@@ -59,6 +59,9 @@ project or jurisdiction code) is defined by the project and recorded in `.ai/kno
 
 **If `.ai/knowledge-base.md` does not document the audit-stamp column name or the stamp prefix,
 STOP and ask the user before generating or validating any script. Never invent either value.**
+(Check `.ai/knowledge-base.md` Section 7 → `Database Conventions` subsection; a value of
+`Undocumented`, or the subsection being absent entirely, both count as "not documented" and
+trigger the stop-and-ask rule.)
 
 #### SQL Server:
 ```sql
@@ -107,6 +110,9 @@ documented in `.ai/knowledge-base.md`. There are exactly two valid documented ou
 **If `.ai/knowledge-base.md` does not document the reversal-required policy — or does not document
 the audit-stamp column name or the stamp prefix — STOP and ask the user before proceeding. Do not
 assume either the requirement or the exemption. Never silently default to "reversal not required."**
+(Check `.ai/knowledge-base.md` Section 7 → `Database Conventions` subsection; a value of
+`Undocumented`, or the subsection being absent entirely, both count as "not documented" and
+trigger the stop-and-ask rule.)
 
 ### Audit-Stamp Value in Reversal Scripts:
 - **If original value was NOT blank/empty**: Use the same stamp format with the ticket number
@@ -260,25 +266,28 @@ END
 - **UPDATE/INSERT**: Audit-stamp column is MANDATORY
 - **DELETE**: Audit-stamp column is NOT required
 
-### Step 2: Check Audit-Stamp Column (for UPDATE/INSERT only)
+### Step 2: Confirm Project Policy Is Documented (precondition for all later steps)
+Confirm `.ai/knowledge-base.md` documents the audit-stamp column name, the stamp prefix, **and**
+the reversal-required policy (check Section 7 → `Database Conventions` subsection; a value of
+`Undocumented`, or the subsection being absent entirely, both count as "not documented" and
+trigger the stop-and-ask rule). **If any of these is not documented, STOP and ask the user — do
+not continue validation and never silently default to "reversal not required."** This must come
+before Step 3, because the audit-stamp column cannot be checked if its name is unknown.
+
+### Step 3: Check Audit-Stamp Column (for UPDATE/INSERT only)
 - **UPDATE/INSERT**: If missing from SET/VALUES clause → **FAIL** immediately
 - If present → Extract the project code (if the project's prefix embeds one)
 
-### Step 3: Validate Based on Project Policy
-First confirm `.ai/knowledge-base.md` documents the audit-stamp column name, the stamp prefix, **and**
-the reversal-required policy. **If any of these is not documented, STOP and ask the user — do not
-continue validation and never silently default to "reversal not required."**
-
-Once documented:
+### Step 4: Apply Project Policy
 - **Reversal-required projects**: Require reversal script
 - **Other projects** (reversal explicitly documented as not required): Do NOT require reversal script
 
-### Step 4: Validate Statement Type
+### Step 5: Validate Statement Type
 - **UPDATE**: Check WHERE clause, record count, audit-stamp column in SET clause
 - **DELETE**: Check WHERE clause, record count only (plus reversal script if reversal-required)
 - **INSERT**: Check audit-stamp column in VALUES/SET clause, record count, proper syntax
 
-### Step 5: Validate Database Syntax
+### Step 6: Validate Database Syntax
 - **SQL Server**: `CONVERT(VARCHAR(8), GETDATE(), 112)`
 - **Oracle**: `TO_CHAR(SYSDATE, 'YYYYMMDD')`
 - Other engines: use the project's equivalent date-formatting function

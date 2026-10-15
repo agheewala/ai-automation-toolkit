@@ -205,10 +205,13 @@ will STOP and ask the user if any is missing from `.ai/knowledge-base.md`. Colle
 so that stop-and-ask is not hit on first use. **This step is OPTIONAL and must never block
 generation.**
 
-Run it only if a database was detected in **Auto-Detection Instructions** and the project
-appears to use an audit/timestamp column convention (e.g. a recurring "last updated by/at" or
-similar stamp column across tables in schema files, migrations, or data-access code). If no
-database or no such convention is visible, skip the step and record the fields as undocumented.
+Run it only if a database was detected in **Auto-Detection Instructions**.
+- **No database at all:** skip this step and **omit the `### Database Conventions` subsection
+  entirely** from Section 7 (do not emit it with all fields `Undocumented`).
+- **Database present but no visible audit/timestamp column convention** (e.g. no recurring "last
+  updated by/at" or similar stamp column across tables in schema files, migrations, or
+  data-access code): still emit the subsection, with the undetected fields recorded as
+  `Undocumented`.
 
 For each field, first try to detect it from the codebase/schema (e.g. the most frequent
 stamp-style column, existing production-fix scripts, or documented policy in `PVD_PATHS`). Report
@@ -223,6 +226,8 @@ what was detected and ask the user once, in a single message, to confirm or supp
 Rules:
 - If the user doesn't know, or the project has no such policy yet, accept that. Do not ask
   follow-ups and do not guess.
+- If no interactive answer is available (e.g. autonomous/non-interactive execution), record the
+  field(s) as `Undocumented` and continue — do not block or wait indefinitely.
 - Record only values that were detected in code/docs or confirmed by the user.
 - Write the result in `.ai/knowledge-base.md` Section 7 under a `### Database Conventions`
   subsection using this shape:
@@ -232,7 +237,13 @@ Rules:
   - Audit-stamp column: <name | Undocumented>
   - Stamp prefix: <prefix/format | Undocumented>
   - Reversal script required: <Yes | No (explicitly not required) | Undocumented>
+  - Reversal policy mapping (optional): <code -> Yes/No | n/a>
   ```
+
+  Include the optional `Reversal policy mapping` line only when the policy varies per
+  jurisdiction/project code rather than being one project-wide value (e.g. `AA -> Yes, BB -> No`);
+  otherwise omit it or write `n/a`. When a mapping is present, a code missing from the mapping
+  counts as not documented.
 
 - For any field marked `Undocumented`, add the note: "Not yet documented — SQL_Guidelines.md
   will stop and ask the user when a SQL script needs this value; update this section once
