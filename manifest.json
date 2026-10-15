@@ -1,0 +1,54 @@
+{
+  "toolkitVersion": "0.1.0-dev",
+  "tiers": {
+    "1": {
+      "description": "Pure framework — blind overwrite on update, no jurisdiction-specific content ever lives here",
+      "files": [
+        "generators/create-build-settings.prompt.md",
+        "generators/create-coding-standards.prompt.md",
+        "generators/create-data-dictionary.prompt.md",
+        "generators/create-domain-agent.prompt.md",
+        "generators/create-implementation-patterns.prompt.md",
+        "generators/create-knowledge-base.prompt.md",
+        "generators/create-scm-workflow.prompt.md",
+        "data-dictionary-tooling/export-schema-catalog.sqlserver.sql",
+        "data-dictionary-tooling/export-stored-procedures.sqlserver.sql",
+        "stacks/dotnet-mvc/notes.md"
+      ]
+    },
+    "2": {
+      "description": "Generated-but-customizable — 3-way merge on update, never blind overwrite",
+      "files": [
+        "AGENTS.md.template",
+        ".github/copilot-instructions.md.template",
+        ".github/agents/ticket-processor.agent.md",
+        ".github/agents/domain-engineer.agent.md",
+        ".github/prompts/auto-fix.prompt.md",
+        ".github/prompts/fix-ticket.prompt.md",
+        ".github/prompts/implement.prompt.md",
+        ".github/prompts/pr-review.prompt.md",
+        ".github/skills/patterns/SKILL.md",
+        ".ai/behavior/decision-rules.md",
+        ".ai/behavior/setting.md",
+        ".ai/behavior/ada-workflow.md",
+        ".ai/governance/coding-standards.md",
+        ".ai/governance/copilot-instruction.md",
+        ".ai/governance/scm-workflow.md",
+        ".ai/governance/security-and-compliance.md",
+        ".ai/governance/SQL_Guidelines.md",
+        ".ai/governance/wcag-fix-patterns.md",
+        ".ai/governance/custom-fixes.md",
+        ".ai/templates/commit-message.md",
+        ".ai/templates/pr-template.md"
+      ]
+    },
+    "3": {
+      "description": "Fully jurisdiction-owned — never touched by sync, ever",
+      "patterns": [
+        ".ai/knowledge-base.md",
+        ".ai/data-dictionary/**"
+      ]
+    }
+  },
+  "deprecated": []
+}
