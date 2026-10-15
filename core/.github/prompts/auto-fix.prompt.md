@@ -112,7 +112,7 @@ User Input Received
 5. Create branch
 6. Implement fix using domain patterns
 7. Build validation
-8. Show changes → **WAIT FOR "PUSH BRANCH" OR "PUSH" APPROVAL**
+8. Show changes → **WAIT FOR "PUSH" APPROVAL**
 9. Push and create PR
 10. Link to Jira
 
@@ -179,7 +179,7 @@ runSubagent(
    User: y / yes
 
 2. ⏸️ Push Approval
-   User: PUSH BRANCH
+   User: PUSH
 ```
 
 ### ADA Workflow (2 confirmations)

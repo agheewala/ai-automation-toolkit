@@ -11,8 +11,8 @@
 |---------|-------|
 | **Remote** | `origin` |
 | **URL** | `{{REPO_REMOTE_NAME}}` |
-| **Platform** | Bitbucket |
-| **Project Prefix** | `PROJ` (replace with this project's actual Jira project key) |
+| **Platform** | {{SCM_PLATFORM}} |
+| **Project Prefix** | `PROJ` (replace with this project's actual ticket-tracker project key, and name the tracker) |
 
 ---
 
@@ -22,8 +22,15 @@
 
 | Branch | Purpose | Rules |
 |--------|---------|-------|
-| `Development` | Active development — **start ALL work here** | Pull before branching; all feature branches merge back here |
-| `Release` | Production releases | **Never commit directly** — merged from Development by release manager only |
+| `{{BASE_BRANCHES}}` | Active development — **start ALL work here** | Pull before branching; all feature branches merge back here |
+| `<production-release branch>` | Production releases | **Never commit directly** — merged from `{{BASE_BRANCHES}}` by release manager only |
+
+> `{{BASE_BRANCHES}}` is populated per-project by `generators/create-scm-workflow.prompt.md` with the
+> name of the branch that all work starts from and all PRs target (used inline everywhere in this
+> file and in the other workflow files). The `<production-release branch>` placeholder in the second
+> row (and in the prohibitions below) is replaced by the same generator with the project's real
+> production-release branch name; if the project has no separate production-release branch, the
+> generator removes that row and the production-release-specific prohibitions.
 
 ### Feature Branch Naming
 
@@ -47,15 +54,15 @@
 ### Step 1 — Start Work
 
 ```powershell
-# Always start from Development
-git checkout Development
-git pull origin Development
+# Always start from {{BASE_BRANCHES}}
+git checkout {{BASE_BRANCHES}}
+git pull origin {{BASE_BRANCHES}}
 
 # Create feature branch (prefix per {{BRANCH_PREFIX_TABLE}})
 git checkout -b BUG/PROJ-####_Short_Title
 ```
 
-> ⚠️ **Never start work on `Release` or `master`.**
+> ⚠️ **Never start work on `<production-release branch>` or `master`.**
 
 ---
 
@@ -113,14 +120,14 @@ git push origin BUG/PROJ-####_Short_Title
 ```
 
 > ⛔ **Never `git push --force`** on shared branches.  
-> ⛔ **Never push directly to `Development` or `Release`.**  
-> ⛔ **Always wait for explicit "PUSH BRANCH" or "PUSH" approval** before pushing.
+> ⛔ **Never push directly to `{{BASE_BRANCHES}}` or `<production-release branch>`.**
+> ⛔ **Always wait for explicit "PUSH" approval** before pushing.
 
 ---
 
 ### Step 5 — Create Pull Request
 
-**Target branch:** `Development` (always — never target `Release`)
+**Target branch:** `{{BASE_BRANCHES}}` (always — never target `<production-release branch>`)
 
 PR description template: [`.ai/templates/pr-template.md`](../templates/pr-template.md)
 
@@ -130,17 +137,17 @@ PR description template: [`.ai/templates/pr-template.md`](../templates/pr-templa
 |-------|-------|
 | **Title** | `[PROJ-####] Short description of change` |
 | **Source branch** | `BUG/PROJ-####_Short_Title` |
-| **Target branch** | `Development` |
+| **Target branch** | `{{BASE_BRANCHES}}` |
 | **Reviewers** | At least 1 reviewer required |
-| **Description** | Use PR template — include Jira link |
+| **Description** | Use PR template — include ticket link |
 
 ---
 
-### Step 6 — Link PR to Jira
+### Step 6 — Link PR to the Ticket
 
-After PR is created in Bitbucket, link it back to the Jira ticket:
-1. Open the Jira ticket (`PROJ-####`)
-2. Under **Development** panel → click **Link** → paste Bitbucket PR URL
+After PR is created in {{SCM_PLATFORM}}, link it back to the ticket in the ticket tracker:
+1. Open the ticket (`PROJ-####`)
+2. In the ticket's development / linked-work section (UI labels vary by tracker), add a link and paste the {{SCM_PLATFORM}} PR URL
 
 ---
 
@@ -150,8 +157,8 @@ After PR is created in Bitbucket, link it back to the Jira ticket:
 |--------|---------------|
 | `git push --force` | Rewrites shared history — data loss risk |
 | `git reset --hard` on pushed commits | Breaks other developers' history |
-| Committing directly to `Development` | Bypasses review process |
-| Committing directly to `Release` | Bypasses release management |
+| Committing directly to `{{BASE_BRANCHES}}` | Bypasses review process |
+| Committing directly to `<production-release branch>` | Bypasses release management |
 | Pushing without build passing | Breaks CI for everyone |
 | Amending published commits | Breaks pull histories |
 | Committing `.vscode/mcp.json` | Contains API tokens — security risk |
@@ -165,10 +172,10 @@ Before running `git push`:
 ```
 □ Build passes: {{BUILD_COMMAND_FULL}} — zero errors
 □ Commit message follows [PROJ-####] format
-□ Branch created from Development (not Release or master)
+□ Branch created from {{BASE_BRANCHES}} (not `<production-release branch>` or master)
 □ No .vscode/mcp.json staged for commit
 □ No unintended files staged (check git status)
-□ Explicit "PUSH BRANCH" or "PUSH" approval received from user
+□ Explicit "PUSH" approval received from user
 ```
 
 ---
@@ -177,17 +184,17 @@ Before running `git push`:
 
 When assisting with SCM operations, Copilot **must**:
 
-- ✅ Pull `Development` before creating any branch
-- ✅ Ask the user whether to stay on `Development` or create a new branch (A/B choice)
+- ✅ Pull `{{BASE_BRANCHES}}` before creating any branch
+- ✅ Ask the user whether to stay on `{{BASE_BRANCHES}}` or create a new branch (A/B choice)
 - ✅ Wait for explicit `yes` or `y` before committing
-- ✅ Wait for explicit `PUSH BRANCH` or `PUSH` before pushing
+- ✅ Wait for explicit `PUSH` before pushing
 - ✅ Ask for reviewer email addresses before creating the PR
-- ✅ Always target `Development` for PR merge target
+- ✅ Always target `{{BASE_BRANCHES}}` for PR merge target
 
 Copilot **must not**:
 
-- ❌ Push code without explicit user approval
-- ❌ Create branches from `Release` or `master`
+- ❌ Push without explicit user approval (the `PUSH` keyword)
+- ❌ Create branches from `<production-release branch>` or `master`
 - ❌ Use `--force` or `--no-verify` on any git operation
 - ❌ Amend commits that have already been pushed
-- ❌ Create a PR targeting `Release` directly
+- ❌ Create a PR targeting `<production-release branch>` directly

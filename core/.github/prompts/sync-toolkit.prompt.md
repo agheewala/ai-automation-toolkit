@@ -146,8 +146,10 @@ project's copies (never in `<source>`, and never in the baseline):
 
 - `{{PROJECT_NAME}}` → the project name from Step 2, in every copied file that contains it.
 - `{{REQUIRED_MODEL_LIST}}` → the model value from Step 2, in every copied file that contains it
-  (the `model:` frontmatter of the ticket prompts). If the user gave none, leave the token and
-  list it as pending.
+  (the `model:` frontmatter of the ticket prompts and the Ticket Processor / Domain Engineer
+  agents, plus the "Required Model" prose in `AGENTS.md`). In `model:` frontmatter, write the
+  value as the YAML scalar/array the field expects; in prose, write it as a human-readable model
+  name or "A or B" list. If the user gave none, leave the token and list it as pending.
 - `{{PROJECT_SPECIFIC_FIXES}}` in `.ai/governance/custom-fixes.md` → replace with a single
   italic line stating that no project-specific fixes have been recorded yet. That file is
   hand-maintained afterward, per its own note.

@@ -19,8 +19,19 @@ This document defines the mandatory rules for validating SQL scripts used for da
 
 ## 0. Authoritative Data Source (MANDATORY — Consult First)
 
+> **Data-dictionary status for this project's engine.** `.ai/data-dictionary/` only exists once
+> `generators/create-data-dictionary.prompt.md` has been run, and that generator currently supports
+> **SQL Server only** (Oracle/other-engine export queries are a known gap in this toolkit version).
+> Check whether `.ai/data-dictionary/README.md` exists:
+> - **Present** → follow the rules below.
+> - **Absent, SQL Server project** → the generator has not been run yet; ask the user whether to run it.
+> - **Absent, Oracle/other engine** → no data dictionary is available yet. Use the schema facts in
+>   `.ai/knowledge-base.md` Section 7 as the source instead, and for anything not documented there,
+>   treat it as unknown and ask the user (see `behavior/decision-rules.md` STOP condition #9).
+>   Record the engine's data-dictionary status here once a dictionary exists.
+
 Before drafting, editing, or validating **any** SQL script (production data fix, ad-hoc query,
-data analysis, or a new/modified stored procedure), consult `.ai/data-dictionary/` first:
+data analysis, or a new/modified stored procedure), consult `.ai/data-dictionary/` first (when present, per the note above):
 
 | File | Use it to verify |
 |---|---|
@@ -30,7 +41,8 @@ data analysis, or a new/modified stored procedure), consult `.ai/data-dictionary
 
 Rules:
 - **Never invent a table name, column name, data type, or stored procedure signature.** If it is
-  not found in the data dictionary, treat it as unknown — ask the user before proceeding (see
+  not found in the data dictionary (or, where no data dictionary exists, in `.ai/knowledge-base.md`
+  Section 7), treat it as unknown — ask the user before proceeding (see
   `behavior/decision-rules.md` STOP condition #9).
 - If the data dictionary conflicts with an assumption made from reading application code only,
   the data dictionary wins for schema facts (table/column/type/nullability); the application

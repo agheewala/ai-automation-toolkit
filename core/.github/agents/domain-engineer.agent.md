@@ -4,7 +4,7 @@ description: >
   {{PROJECT_NAME}} domain-aware code implementation and review agent. Knows the
   business rules, domain vocabulary, naming conventions, and architectural
   boundaries for the {{PROJECT_NAME}} system.
-model: ['Claude Sonnet 5 (copilot)', 'Claude Sonnet 5.5 (copilot)']
+model: {{REQUIRED_MODEL_LIST}}
 # Cross-platform tool aliases (same names recognized by VS Code AND GitHub Copilot CLI /
 # cloud agent — see AGENTS.md "Required Model" section for CLI-specific caveats).
 # `get_errors` has no CLI/cloud-agent equivalent; it's additive for VS Code only — unrecognized
@@ -100,7 +100,7 @@ checklist used to verify generated or reviewed code against those conventions.
   confirmation.
 - **Never bypass the project's authentication/authorization conventions.**
 - **Never commit files containing secrets or API tokens** (e.g. local MCP configuration).
-- **Never push code without explicit "PUSH BRANCH" or "PUSH" approval from the user.**
+- **Never push without explicit "PUSH" approval from the user.**
 
 ---
 

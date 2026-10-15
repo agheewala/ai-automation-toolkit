@@ -31,7 +31,7 @@ Description: <issue description>
 
 **Ticket Workflow:**
 ```
-1. ✅ Fetch Jira ticket (if accessible)
+1. ✅ Fetch the ticket from the ticket tracker (if accessible)
 2. ✅ Load domain knowledge from .ai/knowledge-base.md
 3. ✅ Analyze scope, risk, and impact
 --- TYPE GATE (non-negotiable — evaluated immediately after step 3) ---
@@ -40,13 +40,14 @@ Type = Analysis:
   → Deliver written analysis report in chat ONLY
   → STOP — no branch, no code, no build, no push, no commit
   → Do NOT continue to steps 4–14 under any circumstances
-  → See .ai/behavior/setting.md section 7 for Analysis posture
+  → See .ai/behavior/setting.md Section 2 (Ticket Type Risk Posture — Analysis row) and
+    .ai/behavior/decision-rules.md STOP condition #14 for the Analysis posture
   → Mode: "Ask" or "Plan" chat mode is sufficient — Analysis is read-only (no edits/build/push), so
     Ask/Plan mode's restricted toolset can complete it. Agent mode also works.
 
 Type = Bug:
   → Continue to step 4
-  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `Development`
+  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `{{BASE_BRANCHES}}`
   → Build scope: Module solution only (e.g. {{SOLUTION_FILES}})
   → Full {{SOLUTION_FILES}} build only if shared libs touched
   → STOP if more than 3 files need to change — confirm scope first
@@ -56,7 +57,7 @@ Type = Bug:
 
 Type = Enhancement:
   → Continue to step 4
-  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `Development`
+  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `{{BASE_BRANCHES}}`
   → Build scope: Full {{SOLUTION_FILES}} mandatory
   → Minimum 1 reviewer required on PR
   → Flag any cross-module impact before implementing
@@ -64,7 +65,7 @@ Type = Enhancement:
 
 Type = CR (Change Request):
   → Continue to step 4
-  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `Development`
+  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `{{BASE_BRANCHES}}`
   → Build scope: Full {{SOLUTION_FILES}} mandatory
   → Minimum 1 reviewer required on PR
   → STOP if shared library change needed — require team lead sign-off first
@@ -73,16 +74,16 @@ Type = CR (Change Request):
 
 ----------------------------------------------------------------------
 4. ⏸️  Present analysis → Wait for your confirmation
-5. ✅ Check current branch → if Development: git pull + ask branch strategy (A: stay on Development / B: create new branch)
+5. ✅ Check current branch → if {{BASE_BRANCHES}}: git pull + ask branch strategy (A: stay on {{BASE_BRANCHES}} / B: create new branch)
 6. ✅ Implement fix using domain patterns
 7. ✅ Validate build passes
 8. ✅ Show testing checklist in chat
 9. ⏸️  Ask commit confirmation → Wait for "yes" or "y" → commit code
-10. ⏸️ Show changes summary → Wait for "PUSH BRANCH" or "PUSH" approval
+10. ⏸️ Show changes summary → Wait for "PUSH" approval
 11. ⏸️ Ask for reviewer emails
 12. ✅ Push branch
 13. ✅ Create Pull Request
-14. ✅ Provide instructions to link PR to Jira
+14. ✅ Provide instructions to link PR to the ticket
 ```
 
 **ADA Workflow:**
@@ -93,7 +94,7 @@ Type = CR (Change Request):
 4. ⏸️  Ask branch strategy → Wait for your choice
 5. ✅ Apply fixes using 3-tier priority
 6. ✅ Validate build passes
-7. ⏸️  Show changes → Wait for "PUSH BRANCH" or "PUSH" approval
+7. ⏸️  Show changes → Wait for "PUSH" approval
 8. ✅ Push branch
 9. ✅ Create Pull Request
 ```
@@ -119,10 +120,10 @@ Description: <your description>
 
 **You only need to:**
 - ✅ Confirm the pre-code analysis (Ticket) OR branch strategy (ADA)
-- ✅ Choose branch strategy: A (stay on Development) or B (create new branch)
+- ✅ Choose branch strategy: A (stay on {{BASE_BRANCHES}}) or B (create new branch)
 - ✅ Type "yes" or "y" when ready to commit
 - ✅ Provide reviewer email addresses when prompted
-- ✅ Type "PUSH BRANCH" or "PUSH" when ready to push
+- ✅ Type "PUSH" when ready to push
 
 **Everything else is automated** — no manual branching, no manual commits, no manual PR creation.
 
@@ -139,7 +140,7 @@ If you start a Bug/Enhancement/CR ticket in Plan mode, it will only complete the
 ### Required Model — Strictly Enforced
 
 Whenever the `fix ticket` command (or `/auto-fix`, `/fixada-*`) is used, the workflow MUST run on
-**Claude Sonnet 5 or Claude Sonnet 5.5** — no other model. This is enforced via the `model:`
+**{{REQUIRED_MODEL_LIST}}** — no other model. This is enforced via the `model:`
 frontmatter field (with fallback array) on:
 - [`.github/prompts/fix-ticket.prompt.md`](.github/prompts/fix-ticket.prompt.md)
 - [`.github/prompts/auto-fix.prompt.md`](.github/prompts/auto-fix.prompt.md)
@@ -152,7 +153,7 @@ Do not manually switch to a different model mid-workflow for these commands.
 > JetBrains/Eclipse/Xcode). GitHub Copilot CLI may not honor it the same way — the CLI session's
 > currently active model takes priority. When running `fix ticket` from the CLI, explicitly set
 > the model for the session first (`copilot --model <model-name>` at launch, or the `/model`
-> command inside a session) so it matches Claude Sonnet 5/5.5 before invoking the workflow.
+> command inside a session) so it matches {{REQUIRED_MODEL_LIST}} before invoking the workflow.
 
 ### Running `fix ticket` from GitHub Copilot CLI
 
@@ -182,11 +183,11 @@ Description: <issue description>"
 Two things to set up once before relying on this in the CLI:
 1. **Model** — set it explicitly for the session (see note above); frontmatter enforcement is not
    guaranteed outside VS Code/IDEs.
-2. **Bitbucket MCP server** — the CLI keeps its own MCP registry, separate from `.vscode/mcp.json`
-   (default `~/.copilot/mcp-config.json`, or the `COPILOT_HOME` directory). Register the Bitbucket
-   server there too (`copilot mcp add --transport http bitbucket <url>` or `/mcp add`) so STEP 9
+2. **{{SCM_PLATFORM}} MCP server** — the CLI keeps its own MCP registry, separate from `.vscode/mcp.json`
+   (default `~/.copilot/mcp-config.json`, or the `COPILOT_HOME` directory). Register the {{SCM_PLATFORM}}
+   server there too (`copilot mcp add --transport http <server-name> <url>` or `/mcp add`) so STEP 9
    (PR creation) can run from the CLI; otherwise the agent falls back to reporting the pushed
-   branch and asking you to open the PR manually in Bitbucket.
+   branch and asking you to open the PR manually in {{SCM_PLATFORM}}.
 
 Everything else — `.ai/knowledge-base.md`, `.ai/governance/*`, `.ai/behavior/*`, `AGENTS.md`, and
 `.github/copilot-instructions.md` — is plain Markdown read identically by both VS Code and the CLI,
@@ -201,15 +202,15 @@ so ticket-type rules, STOP/FLAG logic, build scope, and reviewer counts behave t
 
 ## 🔌 MCP Setup (Required for Full Automation)
 
-**Enables:** Automatic Jira ticket fetching and Bitbucket PR creation
+**Enables:** Automatic ticket fetching from the ticket tracker and {{SCM_PLATFORM}} PR creation
 
 **See:** [README.md](README.md#-mcp-setup-required-for-full-automation) for complete setup guide (10-15 min)
 
 ### Quick Summary
 - Install `uvx` package manager
-- Generate Jira API token and Bitbucket app password
+- Generate the ticket-tracker API token and the {{SCM_PLATFORM}} access credential (e.g. app password / personal access token)
 - Create `.vscode/mcp.json` with your credentials
-- Test with `@workspace Get Jira ticket PROJ-1234`
+- Test with `@workspace Get ticket PROJ-1234 from the ticket tracker`
 
 **⚠️ Security:** Never commit `.vscode/mcp.json` to Git!
 
@@ -231,7 +232,7 @@ so ticket-type rules, STOP/FLAG logic, build scope, and reviewer counts behave t
 All work is submitted as a **chat-based ticket**. Do NOT start coding until you have read and confirmed the ticket. Full rules: [`.ai/governance/copilot-instruction.md`](.ai/governance/copilot-instruction.md).
 
 ```
-TicketID(Jira Link):
+TicketID(Ticket Link):
 Type:
 Detail Description:
 Screenshot/Document(Optional):
@@ -269,7 +270,7 @@ Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md)
 | Accessibility (WCAG 2.1 AA mandatory) | [`governance/wcag-fix-patterns.md`](.ai/governance/wcag-fix-patterns.md) |
 | Branching & push rules | [`governance/scm-workflow.md`](.ai/governance/scm-workflow.md) |
 | SQL production fix rules | [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) |
-| **DB schema & stored procedure reference (authoritative for ALL SQL/data work)** | [`data-dictionary/README.md`](.ai/data-dictionary/README.md) |
+| **DB schema & stored procedure reference (authoritative for ALL SQL/data work, if present)** | [`data-dictionary/README.md`](.ai/data-dictionary/README.md) — only exists once `generators/create-data-dictionary.prompt.md` has run; for non-SQL-Server projects it may not exist yet, see [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) for the current engine's data-dictionary status |
 | Security & compliance | [`governance/security-and-compliance.md`](.ai/governance/security-and-compliance.md) |
 | Project-specific ADA fixes | [`governance/custom-fixes.md`](.ai/governance/custom-fixes.md) |
 | Per-ticket-type risk posture | [`behavior/setting.md`](.ai/behavior/setting.md) |
@@ -279,20 +280,23 @@ Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md)
 ## Critical Gotchas
 
 - **No inline SQL** — every DB call goes through the project's data-access layer (see `.ai/governance/coding-standards.md` for the exact mechanism).
-- **DB schema & stored procedures are authoritative via the data dictionary** — before preparing
+- **DB schema & stored procedures are authoritative via the data dictionary (if present)** — before preparing
   any SQL script, doing data analysis, or changing code that touches the DB, consult
-  [`.ai/data-dictionary/`](.ai/data-dictionary/README.md) (`db-schema-dictionary.md` for every
+  [`.ai/data-dictionary/`](.ai/data-dictionary/README.md) if it exists (`db-schema-dictionary.md` for every
   table/column/type/description, `stored-procedures.md` for every existing procedure's full
   script, `stored-procedure-dataflows.md` for a visual diagram of what each procedure touches).
-  Never invent a table, column, or stored procedure name — verify against these files
-  first, same priority tier as `.ai/knowledge-base.md`.
+  For non-SQL-Server projects this folder may not exist yet — see
+  [`.ai/governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) for the current engine's data-dictionary
+  status; where it is absent, fall back to `.ai/knowledge-base.md` Section 7 and ask the user.
+  Never invent a table, column, or stored procedure name — verify against the data dictionary
+  (when present) or the knowledge base first, same priority tier as `.ai/knowledge-base.md`.
 - **No raw markup in templates/views** — use the project's own component/helper conventions (see `.ai/governance/coding-standards.md`).
 - **No hardcoded strings** — all user-facing labels/text come from the project's resource/localization mechanism (see `.ai/governance/coding-standards.md`).
 - **CSS theme files** — Module-specific pages touch the following theme folders: {{THEME_FOLDERS}}; shared pages touch at minimum the base theme folder and the accessibility theme folder from that set. See [coding-standards.md](.ai/governance/coding-standards.md#3-css--theme-rules) for paths.
-- **Never push without explicit "PUSH BRANCH" or "PUSH" approval** from the user.
+- **Never push without explicit "PUSH" approval** from the user.
 - **Shared library changes** (`{{SHARED_LIBS}}`) require team lead sign-off before implementation.
-- **Branch must be `Development`** before starting any Bug / Enhancement / Change Request work.
-- **NEVER post notes or comments to a Jira ticket** under any circumstances, for any ticket type, at any workflow step. This is an absolute prohibition — no automatic, implicit, or proactive Jira comments. The only exception is when the user explicitly says "add note in ticket" and provides the note text.
+- **Branch must be `{{BASE_BRANCHES}}`** before starting any Bug / Enhancement / Change Request work.
+- **NEVER post notes or comments to a ticket in the ticket tracker** under any circumstances, for any ticket type, at any workflow step. This is an absolute prohibition — no automatic, implicit, or proactive ticket comments. The only exception is when the user explicitly says "add note in ticket" and provides the note text.
 - **Base classes** — follow the project's base-class conventions for view models/controllers/handlers (see `.github/skills/patterns/SKILL.md`).
 
 ---

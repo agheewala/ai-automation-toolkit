@@ -104,8 +104,9 @@ record each distinctly and ask the user which one(s) the ticket workflow's build
   checklist (e.g. a specific data-access-layer pattern to verify, a required attribute/decorator on
   certain classes, a logging-declaration convention) grounded in what `create-coding-standards.prompt.md`
   already found. Do not duplicate the WCAG-specific `{{STACK_CHECKLIST}}` instance that lives in
-  `.ai/governance/wcag-fix-patterns.md` — that is a separate token occurrence owned by a different
-  (accessibility-focused) generator; leave it untouched.
+  `.ai/governance/wcag-fix-patterns.md` — that is a separate token occurrence that **no generator
+  owns**; it is intentionally hand-maintained per-project (like `{{PROJECT_SPECIFIC_FIXES}}` in
+  `custom-fixes.md`), so leave it untouched.
   Live detection against the actual repo is the primary and authoritative source for this
   checklist. As a supplementary hint only, also check whether `stacks/<detected-stack>/notes.md`
   exists in this package (e.g. `stacks/dotnet-mvc/notes.md`) for the stack identified in
@@ -125,7 +126,7 @@ references these tokens:
 |---|---|
 | `{{BUILD_SCOPE_RULES}}` | `.ai/behavior/setting.md` (Section 1, "Build Scope") |
 | `{{RISK_THRESHOLDS}}` | `.ai/behavior/setting.md` (Section 2, "Ticket Type Risk Posture"), `.ai/behavior/decision-rules.md` (STOP Condition #8) |
-| `{{STACK_CHECKLIST}}` | `.ai/behavior/setting.md` (Section 3, "Pre-Push Checklist") — **only** this occurrence; do not touch the separate `{{STACK_CHECKLIST}}` in `.ai/governance/wcag-fix-patterns.md` |
+| `{{STACK_CHECKLIST}}` | `.ai/behavior/setting.md` (Section 3, "Pre-Push Checklist") — **only** this occurrence; do not touch the separate `{{STACK_CHECKLIST}}` in `.ai/governance/wcag-fix-patterns.md` (no generator owns it — it is intentionally hand-maintained per-project) |
 | `{{BUILD_COMMAND_FULL}}` | `AGENTS.md` (Build section), `.ai/governance/copilot-instruction.md`, `.ai/governance/scm-workflow.md`, `.ai/governance/security-and-compliance.md`, `.ai/templates/pr-template.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
 | `{{BUILD_COMMAND_MODULE}}` | Same 7 files as `{{BUILD_COMMAND_FULL}}` above |
 | `{{SOLUTION_FILES}}` | `AGENTS.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |

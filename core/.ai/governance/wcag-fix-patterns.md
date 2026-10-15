@@ -28,7 +28,13 @@ These rules are **non-negotiable** for every UI change in this project.
 
 {{STACK_CHECKLIST}}
 
-> `{{STACK_CHECKLIST}}` is populated per-project from `stacks/<stack>/notes.md` with the stack's
+> `{{STACK_CHECKLIST}}` here is **not** populated by any generator prompt — it is intentionally
+> **hand-maintained per-project** (same as `{{PROJECT_SPECIFIC_FIXES}}` in `custom-fixes.md`). Do not
+> wait for a generator to fill it: the project owner replaces this placeholder manually with the
+> stack's own mandatory accessibility rules. (A separate `{{STACK_CHECKLIST}}` in
+> `.ai/behavior/setting.md`'s Pre-Push Checklist *is* generator-owned — see
+> `generators/create-build-settings.prompt.md` — but this occurrence is not.) A good starting point
+> is `stacks/<stack>/notes.md`, if the toolkit ships one for the project's stack. The content should cover the stack's
 > own markup/templating-helper patterns (e.g. framework label/form helper equivalents of
 > `Html.cLabelFor`, validation-summary and hidden-field conventions, screen-reader-announcement
 > functions, modal/dialog patterns, skip-link markup), JavaScript accessibility conventions, and

@@ -1,6 +1,6 @@
 # Pull Request Template
 
-> Use this template when creating a PR after `Push Code` is confirmed.  
+> Use this template when creating a PR after `PUSH` is confirmed.  
 > Copy into the PR description. Fill in all sections.
 
 ---
@@ -30,9 +30,9 @@ TBD
 
 ---
 
-## Related JIRA Ticket
+## Related Ticket
 
-[TicketID] — TBD _(paste JIRA URL)_
+[TicketID] — TBD _(paste ticket URL)_
 
 ---
 

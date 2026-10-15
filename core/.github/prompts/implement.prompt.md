@@ -7,7 +7,8 @@ applyTo: "**"
 > ⚠️ **TYPE CHECK — Read before loading this prompt.**  
 > If the ticket `Type` is **Analysis**, do **NOT** use this prompt.  
 > Analysis tickets require a written report only — no branches, no code, no build.  
-> See `.ai/behavior/setting.md` section 7 (Analysis posture) and stop immediately.
+> See `.ai/behavior/setting.md` Section 2 (Ticket Type Risk Posture — Analysis row) and
+> `.ai/behavior/decision-rules.md` STOP condition #14 for the Analysis posture, and stop immediately.
 
 > **Reference**: `.ai/knowledge-base.md` is the canonical source of truth.  
 > **Authority**: Source code behavior is authoritative over documentation.

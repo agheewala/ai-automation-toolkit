@@ -42,7 +42,7 @@ Tickets are submitted directly in chat — no files or folders need to be create
 The user must provide the ticket in this exact format:
 
 ```
-TicketID(Jira Link):
+TicketID(Ticket Link):
 Type:
 Detail Description:
 Screenshot/Document(Optional):
@@ -54,7 +54,7 @@ Impacted Methods / Functions(Optional):
 
 | Field | Required | Behaviour if Missing |
 |---|---|---|
-| `TicketID(Jira Link)` | ✅ Yes | AI attempts to fetch the Jira ticket. If the ticket does not exist, is not accessible, or no ID is provided, display an appropriate message and ask the user whether to proceed based on the description (`y` / `yes` required to continue). Do NOT proceed until confirmed. |
+| `TicketID(Ticket Link)` | ✅ Yes | AI attempts to fetch the ticket from the ticket tracker. If the ticket does not exist, is not accessible, or no ID is provided, display an appropriate message and ask the user whether to proceed based on the description (`y` / `yes` required to continue). Do NOT proceed until confirmed. |
 | `Type` | ✅ Yes | STOP — ask: Bug / Enhancement / Change Request / Analysis? |
 | `Detail Description` | ✅ Yes | STOP — cannot proceed without this |
 | `Screenshot/Document` | Optional | Mark as `Not provided` — continue |
@@ -63,11 +63,11 @@ Impacted Methods / Functions(Optional):
 
 ### Ticket ID Validation Logic
 
-When a `TicketID(Jira Link)` is provided, attempt to fetch the Jira ticket:
+When a `TicketID(Ticket Link)` is provided, attempt to fetch the ticket from the ticket tracker:
 
 | Scenario | Behaviour |
 |---|---|
-| Ticket found & accessible | Read Jira description and details; if user description also provided, compare both |
+| Ticket found & accessible | Read ticket description and details; if user description also provided, compare both |
 | Ticket NOT found or NOT accessible | Show message to user; ask `y` / `yes` to proceed based on description |
 | No ticket ID provided | Show message; ask `y` / `yes` to proceed based on description |
 | No ticket ID AND no description | STOP — Detail Description is required |
@@ -87,7 +87,7 @@ After receiving the chat ticket input, the AI must internally complete an analys
 [ ] Detail Description understood — expected vs. actual behaviour clear
 [ ] Affected pages and layers identified (UI / Controller / Service / DataLayer / DB)
 [ ] Impacted methods identified (inferred or provided)
-[ ] If DB/SQL is involved — table/column/stored procedure verified against `.ai/data-dictionary/` (see `governance/SQL_Guidelines.md` Section 0)
+[ ] If DB/SQL is involved — table/column/stored procedure verified against `.ai/data-dictionary/` if present (see `.ai/data-dictionary/README.md` and `governance/SQL_Guidelines.md` Section 0; for non-SQL-Server projects the data dictionary may not exist yet — `governance/SQL_Guidelines.md` documents the current engine's data-dictionary status, and `.ai/knowledge-base.md` Section 7 is the fallback source)
 [ ] Risk assessed (shared library impact, cross-module impact, DB changes)
 [ ] Scope boundary set — what is in and what is explicitly out
 ```
@@ -108,15 +108,15 @@ Before starting any code fix, check the current branch:
 git branch --show-current
 ```
 
-❌ If the branch is **not** `Development`:
+❌ If the branch is **not** `{{BASE_BRANCHES}}`:
 - Stop immediately.
 - Inform the user which branch is active.
 - Do NOT proceed.
 
-✅ If it **is** the `Development` branch:
+✅ If it **is** the `{{BASE_BRANCHES}}` branch:
 
 ```bash
-git pull origin Development
+git pull origin {{BASE_BRANCHES}}
 ```
 
 ---
@@ -173,21 +173,21 @@ git branch --show-current
 
 | Branch State | Behaviour |
 |---|---|
-| Currently on `Development` | Proceed with analysis immediately |
+| Currently on `{{BASE_BRANCHES}}` | Proceed with analysis immediately |
 | Currently on any other branch | Inform the user; present two options (see below) |
 
-**User prompt when not on `Development`:**
+**User prompt when not on `{{BASE_BRANCHES}}`:**
 
 > "Current branch is `<branch-name>`.  
 > Choose an option:  
 > A) Continue analysis on this branch  
-> B) Switch to `Development` (or specify another branch) and start analysis"
+> B) Switch to `{{BASE_BRANCHES}}` (or specify another branch) and start analysis"
 
 | User Input | Action |
 |---|---|
 | `same branch` / `continue` / `A` | Proceed on current branch |
-| `change branch` | `git checkout Development` → `git pull origin Development` → start analysis |
-| `change branch to Development` | `git checkout Development` → `git pull origin Development` → start analysis |
+| `change branch` | `git checkout {{BASE_BRANCHES}}` → `git pull origin {{BASE_BRANCHES}}` → start analysis |
+| `change branch to {{BASE_BRANCHES}}` | `git checkout {{BASE_BRANCHES}}` → `git pull origin {{BASE_BRANCHES}}` → start analysis |
 | `change branch to <name>` | `git checkout <name>` → `git pull origin <name>` → start analysis |
 
 **ANALYSIS output:**
@@ -328,21 +328,21 @@ No code may be pushed if the build is failing.
 Before pushing any code, ask the user:
 
 > "Please review the changes.  
-> Type **Push Code** when you are ready to push."
+> Type **PUSH** when you are ready to push."
 
 🚫 Code must **never** be pushed without the user explicitly typing:
 
 ```
-Push Code
+PUSH
 ```
 
-No other phrase, abbreviation, or confirmation is accepted as a substitute.
+No other phrase, abbreviation, or confirmation is accepted as a substitute (the keyword itself is case-insensitive).
 
 ---
 
 ## 9. Push & PR Preparation
 
-Only after receiving `Push Code`:
+Only after receiving `PUSH`:
 
 ```bash
 git push origin <branch-name>
@@ -358,16 +358,16 @@ Minimum required sections:
 - Accessibility confirmation
 - Build status (passed)
 - Scope confirmation (what was intentionally NOT changed)
-- JIRA ticket link
+- Ticket link
 
 ---
 
-## 10. JIRA ↔ PR Linking (Mandatory Steps)
+## 10. Ticket ↔ PR Linking (Mandatory Steps)
 
-After the PR is created, guide the user through these exact steps:
+After the PR is created, guide the user through these exact steps (UI labels vary by ticket tracker):
 
-1. Open the JIRA ticket.
-2. Click **Add Web Link** (near the ticket title, top-right area).
+1. Open the ticket in the ticket tracker.
+2. Use the tracker's option to add a web link / remote link to the ticket.
 3. Paste the Pull Request URL.
 4. Set description to:
    ```
@@ -392,7 +392,7 @@ PR: CR/PROJ-1234_Ticket_Title
 | ❌ No undocumented behavior | Every decision made during implementation is communicated in chat |
 | ❌ No commits without user review | Review step is mandatory before every push |
 | ❌ No bypassing build validation | Build must pass; no exceptions |
-| ❌ No Jira comments or notes — ever | **NEVER post any comment, note, or worklog to a Jira ticket under any circumstances, for any ticket type (Bug, Enhancement, CR, Analysis), in any step of the workflow. The only exception is when the user explicitly types "add note in ticket" with the note content. Any auto-posting of Jira comments is strictly prohibited.** |
+| ❌ No ticket comments or notes — ever | **NEVER post any comment, note, or worklog to a ticket in the ticket tracker under any circumstances, for any ticket type (Bug, Enhancement, CR, Analysis), in any step of the workflow. The only exception is when the user explicitly types "add note in ticket" with the note content. Any auto-posting of ticket comments is strictly prohibited.** |
 
 ---
 

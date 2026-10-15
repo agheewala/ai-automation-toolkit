@@ -14,15 +14,15 @@ Stop all activity and notify the user immediately if any of the following are tr
 | 1 | `TicketID` or `Type` not provided in chat | STOP — ask the user |
 | 2 | `Detail Description` missing or too vague to determine scope | STOP — ask the user for clarification |
 | 3 | Analysis summary presented to user but not confirmed | STOP — wait for user to confirm before writing code |
-| 4 | Current branch is not `Development` (for Bug / Enhancement / Change Request types) | STOP — warn user; do not proceed |
+| 4 | Current branch is not `{{BASE_BRANCHES}}` (for Bug / Enhancement / Change Request types) | STOP — warn user; do not proceed |
 | 5 | Build fails after code changes | STOP — report errors; do not push |
 | 6 | A security vulnerability is discovered | STOP — notify team lead; raise dedicated security ticket |
 | 7 | Shared library (`{{SHARED_LIBS}}`) change required without team lead sign-off | STOP — escalate |
 | 8 | {{RISK_THRESHOLDS}} | STOP — confirm scope with user |
-| 9 | New DB objects (columns, tables, stored procs) required — not found in `.ai/data-dictionary/` and no confirmation from user | STOP — confirm before generating DDL |
-| 10 | Creating SQL scripts (production data fixes, ad-hoc queries, or stored procedures) without first consulting `.ai/data-dictionary/` and `governance/SQL_Guidelines.md` | STOP — read `governance/SQL_Guidelines.md` Section 0 and the relevant data dictionary file(s) first; validate table/column existence, the audit-stamp column, WHERE clauses, and transaction safety |
+| 9 | New DB objects (columns, tables, stored procs) required — not found in `.ai/data-dictionary/` (if present — see `.ai/data-dictionary/README.md`; for non-SQL-Server projects it may not exist yet, see `governance/SQL_Guidelines.md` for the current engine's data-dictionary status, then check `.ai/knowledge-base.md` Section 7 instead) and no confirmation from user | STOP — confirm before generating DDL |
+| 10 | Creating SQL scripts (production data fixes, ad-hoc queries, or stored procedures) without first consulting `.ai/data-dictionary/` (if present — see `.ai/data-dictionary/README.md`; otherwise the schema facts in `.ai/knowledge-base.md` Section 7) and `governance/SQL_Guidelines.md` | STOP — read `governance/SQL_Guidelines.md` Section 0 and the relevant data dictionary file(s), where they exist, first; validate table/column existence, the audit-stamp column, WHERE clauses, and transaction safety |
 | 11 | A third-party library would need to be added | STOP — get explicit approval first |
-| 12 | The user has NOT typed `Push Code` | STOP — do not push |
+| 12 | The user has NOT typed `PUSH` | STOP — do not push |
 | 13 | Any rule in `governance/copilot-instruction.md` would be violated | STOP — flag the conflict |
 | 14 | Ticket Type = Analysis AND any branch creation / code change / build / commit / push is being attempted | STOP — Analysis tickets produce a written report only. No code action is permitted under any circumstances. Deliver analysis and end. |
 
@@ -52,7 +52,7 @@ Proceed without prompting if ALL of the following are true:
 [ ] TicketID, Type, and Detail Description received in chat
 [ ] Analysis summary presented and confirmed by user in chat
 [ ] Risk checklist cleared (behavior/setting.md)
-[ ] Current branch is `Development` (or user confirmed branch for ANALYSIS type)
+[ ] Current branch is `{{BASE_BRANCHES}}` (or user confirmed branch for ANALYSIS type)
 [ ] New branch created (or user explicitly declined)
 [ ] Change is within the scope stated in the chat input
 [ ] No shared library changes required
@@ -85,7 +85,7 @@ Never make a guess to unblock yourself. Always ask.
 | Ambiguity Type | Resolution |
 |---|---|
 | Field name or method name not known | Mark as `TBD` — ask the user |
-| DB column / stored procedure name not known | Check `.ai/data-dictionary/` (schema + stored procedure catalog) first. If still not found, mark as `TBD` — never invent |
+| DB column / stored procedure name not known | Check `.ai/data-dictionary/` (schema + stored procedure catalog) first if it exists (for non-SQL-Server projects it may not exist yet — see `governance/SQL_Guidelines.md` for the current engine's data-dictionary status, then `.ai/knowledge-base.md` Section 7). If still not found, mark as `TBD` — never invent |
 | Business rule unclear | Ask the user — never assume |
 | UI label text missing | Use a clearly-marked `TBD` placeholder in the project's label/resource mechanism — ask for the resource key |
 | Scope boundary unclear (what is in vs. out) | Ask explicitly — do not expand scope silently |

@@ -1,27 +1,27 @@
 ---
 description: >
-  Review a Bitbucket pull request using the {{PROJECT_NAME}} two-phase process:
+  Review a {{SCM_PLATFORM}} pull request using the {{PROJECT_NAME}} two-phase process:
   code-level observations + governance & workflow compliance checks.
   Just provide the PR URL and the review is generated automatically.
 ---
 
 # PR Review — {{PROJECT_NAME}}
 
-You will be invoked when the user provides a Bitbucket PR URL to review.
+You will be invoked when the user provides a {{SCM_PLATFORM}} PR URL to review.
 
 ---
 
 ## Your Job
 
-Fetch the PR details and diff from Bitbucket, then produce a unified review
+Fetch the PR details and diff from {{SCM_PLATFORM}}, then produce a unified review
 covering both code quality and governance compliance in a single numbered list.
 
 ---
 
-## Bitbucket Details
+## {{SCM_PLATFORM}} Details
 
 This repo's SCM remote is `{{REPO_REMOTE_NAME}}` (see `.ai/governance/scm-workflow.md` Section 1
-for the exact workspace/repo-slug breakdown). Platform: Bitbucket Cloud.
+for the exact workspace/repo-slug breakdown). Platform: {{SCM_PLATFORM}}.
 
 Extract `pull_request_id` from the URL the user provides (e.g. `.../pull-requests/350/diff` → ID is `350`).
 
@@ -67,7 +67,7 @@ Cross-check against the repo governance files in this **priority order**:
 
 ### 4. `.ai/governance/scm-workflow.md`
 - Branch naming: prefix per `.ai/governance/scm-workflow.md` + `<TicketID>_<Short_Title>`
-- Target branch must be `Development`
+- Target branch must be `{{BASE_BRANCHES}}`
 - Build evidence must exist before PR is raised
 
 ### 5. `.ai/behavior/setting.md` (Risk Posture)
@@ -112,6 +112,6 @@ untraceable to a business requirement.
 ## Notes
 
 - Always read the governance files from the workspace (`.ai/` folder) for the latest rules.
-- If the PR targets a different repo or workspace, adapt the Bitbucket parameters accordingly.
+- If the PR targets a different repo or workspace, adapt the {{SCM_PLATFORM}} parameters accordingly.
 - CI status (Snyk, build) is noted but does NOT replace the governance compliance check —
   Snyk only covers dependency vulnerabilities, not logic or workflow compliance.

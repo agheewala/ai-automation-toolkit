@@ -4,7 +4,7 @@ description: >
   Fully automated ticket processor. Provide TicketID and Description,
   and this agent handles everything: analysis, branching, implementation, build,
   push, and PR creation. Combines domain knowledge, code patterns, and governance.
-model: ['Claude Sonnet 5 (copilot)', 'Claude Sonnet 5.5 (copilot)']
+model: {{REQUIRED_MODEL_LIST}}
 # Cross-platform tool aliases (same names recognized by VS Code AND GitHub Copilot CLI /
 # cloud agent — see AGENTS.md "Required Model" section for CLI-specific caveats).
 # `get_errors` has no CLI/cloud-agent equivalent; it's additive for VS Code only — unrecognized
@@ -35,14 +35,14 @@ Accept a simple ticket input (ID + Description) and execute the complete workflo
 INPUT: TicketID + Description
   ↓
 AUTOMATED WORKFLOW:
-  1. Fetch Jira ticket (if accessible)
+  1. Fetch ticket from the ticket tracker (if accessible)
   2. Pre-code analysis (scope, risk, impact)
   3. Confirm with user
   4. Create branch
   5. Implement fix using domain knowledge + patterns
   6. Build validation
   7. Show changes for review
-  8. Push branch and create PR (on explicit "PUSH BRANCH" or "PUSH" approval)
+  8. Push branch and create PR (on explicit "PUSH" approval)
   9. Create PR
 ```
 
@@ -51,7 +51,7 @@ AUTOMATED WORKFLOW:
 ## Required Input (Simplified)
 
 ```
-TicketID: <Jira ticket ID or link>
+TicketID: <ticket ID or link>
 Type: <Bug|Enhancement|CR|Analysis>
 Description: <What needs to be fixed/implemented>
 ```
@@ -102,16 +102,20 @@ Before doing ANYTHING, you MUST load these files in this order:
 ### F. Database / SQL (If the Ticket Touches the DB)
 ```
 13. Read `.ai/governance/SQL_Guidelines.md` — Mandatory SQL script validation rules
-14. Consult `.ai/data-dictionary/` (db-schema-dictionary.md, stored-procedures.md,
-    stored-procedure-dataflows.md) — authoritative source for table/column/stored
-    procedure facts; never invent a table, column, or procedure signature
+14. If `.ai/data-dictionary/` exists (db-schema-dictionary.md, stored-procedures.md,
+    stored-procedure-dataflows.md), consult it — authoritative source for table/column/stored
+    procedure facts; never invent a table, column, or procedure signature.
+    If it does NOT exist (e.g. non-SQL-Server projects, where the data-dictionary generator is
+    deferred), see `.ai/governance/SQL_Guidelines.md` for the current engine's data-dictionary
+    status, fall back to `.ai/knowledge-base.md` Section 7, and ask the user for anything
+    not documented there
 ```
 
 **CRITICAL:** If any file is missing or unreadable → STOP and report to user.
 
 ---
 
-## STEP 2: Ticket Validation & Jira Fetch
+## STEP 2: Ticket Validation & Ticket-Tracker Fetch
 
 ### Validation Rules
 
@@ -121,17 +125,17 @@ Before doing ANYTHING, you MUST load these files in this order:
 | Type | ✅ Yes | STOP — Ask user: Bug / Enhancement / CR / Analysis? |
 | Description | ✅ Yes | STOP — Cannot proceed without this |
 
-### Jira Fetch Logic
+### Ticket Fetch Logic
 
 ```
 IF TicketID provided:
-  ├─ Attempt to fetch Jira ticket
-  │   ├─ SUCCESS → Read Jira description + details
+  ├─ Attempt to fetch the ticket from the ticket tracker
+  │   ├─ SUCCESS → Read ticket description + details
   │   │   └─ Compare with user-provided Description
   │   │       └─ If conflict → FLAG to user, ask which to use
   │   │
   │   └─ FAILURE (not accessible / not found)
-  │       └─ Show message: "Jira ticket not accessible"
+  │       └─ Show message: "Ticket not accessible"
   │       └─ Ask: "Proceed based on Description? (y/yes)"
   │           ├─ y/yes → Continue with user Description
   │           └─ other → WAIT for valid input
@@ -201,28 +205,28 @@ Run the following command to detect the current branch:
 git branch --show-current
 ```
 
-**If current branch is NOT `Development`:**
+**If current branch is NOT `{{BASE_BRANCHES}}`:**
 - STOP immediately
-- Warn user: "⚠️ You are on branch `<current_branch>`. Bug/Enhancement/CR work must start from the `Development` branch. Please switch to Development and re-run."
+- Warn user: "⚠️ You are on branch `<current_branch>`. Bug/Enhancement/CR work must start from the `{{BASE_BRANCHES}}` branch. Please switch to {{BASE_BRANCHES}} and re-run."
 - Do NOT proceed
 
-**If current branch IS `Development`:**
-- Automatically run `git pull origin Development` to get the latest code
+**If current branch IS `{{BASE_BRANCHES}}`:**
+- Automatically run `git pull origin {{BASE_BRANCHES}}` to get the latest code
 - Then proceed to Step 4b (branch strategy prompt)
 
 ### Step 4b: Branch Strategy Prompt
 
-After confirming on Development and pulling latest, present the following to the user:
+After confirming on {{BASE_BRANCHES}} and pulling latest, present the following to the user:
 
 ```
 ────────────────────────────────────────────────────────
 BRANCH STRATEGY
 ────────────────────────────────────────────────────────
-You are on the Development branch (latest pulled).
+You are on the {{BASE_BRANCHES}} branch (latest pulled).
 
 Suggested branch name: <branch_name_based_on_ticket>
 
-  A) Continue working directly on the Development branch
+  A) Continue working directly on the {{BASE_BRANCHES}} branch
   B) Create new branch: <branch_name_based_on_ticket>
      (or type your own branch name)
 
@@ -234,7 +238,7 @@ Choose A, B, or type a custom branch name:
 
 | Response | Action |
 |----------|--------|
-| `A` or `a` | Continue on Development — skip branch creation, proceed to STEP 5 |
+| `A` or `a` | Continue on {{BASE_BRANCHES}} — skip branch creation, proceed to STEP 5 |
 | `B` or `b` | Create the agent-suggested branch and switch to it |
 | Custom text | Treat input as the branch name — create and switch to it |
 
@@ -465,7 +469,7 @@ BUILD STATUS:     ✅ PASSED
 COMMIT STATUS:    ✅ COMMITTED
 
 ────────────────────────────────────────────────────────
-Type "PUSH BRANCH" or "PUSH" to push the branch and create PR.
+Type "PUSH" to push the branch and create PR.
 Type "Show Diff" to see detailed changes.
 Type "Modify" to make additional changes.
 ```
@@ -477,7 +481,7 @@ Type "Modify" to make additional changes.
 ## STEP 9: Push & PR Creation (On Explicit Approval)
 
 ### Trigger
-User types: **"PUSH BRANCH"** or **"PUSH"** (case-insensitive: push branch, push, Push Branch, etc.)
+User types: **"PUSH"** (case-insensitive: push, Push, etc.)
 
 ### Pre-Push Prompt
 
@@ -516,28 +520,29 @@ git push origin <branch_name>
 #### B. Create Pull Request
 
 This repo's SCM remote is `{{REPO_REMOTE_NAME}}` (see `.ai/governance/scm-workflow.md` Section 1
-for the exact workspace/repo-slug breakdown). Use the Bitbucket MCP tool, not GitHub CLI:
+for the exact workspace/repo-slug breakdown). Platform: {{SCM_PLATFORM}}. Use the {{SCM_PLATFORM}} MCP tool for
+PR creation, not a different platform's CLI:
 
 **VS Code (MCP tool call, backed by `.vscode/mcp.json`):**
 ```
-mcp_bitbucket_mcp_create_pull_request(
+<create-pull-request tool exposed by the {{SCM_PLATFORM}} MCP server>(
   workspace: "<workspace segment of {{REPO_REMOTE_NAME}}>",
   repository: "<repo-slug segment of {{REPO_REMOTE_NAME}}>",
   title: "<TicketID>: <Title>",
   sourceBranch: "<branch_name>",
-  destinationBranch: "Development",
+  destinationBranch: "{{BASE_BRANCHES}}",
   description: "<PR Body>",
   reviewers: [<reviewer emails/usernames>]
 )
 ```
 
 **Copilot CLI (equivalent):** CLI keeps its own MCP registry, separate from `.vscode/mcp.json`
-(default `~/.copilot/mcp-config.json`, or the directory set in `COPILOT_HOME`). The Bitbucket MCP
-server must be added there too — once via `copilot mcp add --transport http bitbucket <url>` or the
+(default `~/.copilot/mcp-config.json`, or the directory set in `COPILOT_HOME`). The {{SCM_PLATFORM}} MCP
+server must be added there too — once via `copilot mcp add --transport http <server-name> <url>` or the
 `/mcp add` slash command inside a CLI session — before this step can call the equivalent
-`bitbucket/create_pull_request`-style tool. If it isn't configured, fall back as below.
+{{SCM_PLATFORM}} create-pull-request tool. If it isn't configured, fall back as below.
 
-If the Bitbucket MCP tool is unavailable, fall back to reporting the exact `git push` result and asking the user to create the PR manually in Bitbucket using `.ai/templates/pr-template.md`.
+If the {{SCM_PLATFORM}} MCP tool is unavailable, fall back to reporting the exact `git push` result and asking the user to create the PR manually in {{SCM_PLATFORM}} using `.ai/templates/pr-template.md`.
 
 **PR Body Format** (from `.ai/templates/pr-template.md`):
 ```markdown
@@ -552,7 +557,7 @@ If the Bitbucket MCP tool is unavailable, fall back to reporting the exact `git 
 ## Reviewers
 <Insert reviewer emails provided by user — format as: @email1 @email2 @email3>
 
-## Related JIRA Ticket
+## Related Ticket
 [TicketID URL]
 
 Note: Detailed testing checklist is in the chat conversation.
@@ -560,9 +565,9 @@ Note: Detailed testing checklist is in the chat conversation.
 
 **IMPORTANT:** 
 - Use the reviewer emails provided by the user in the Pre-Push Prompt
-- **NEVER post any comment, note, or worklog to a Jira ticket** — this is an absolute prohibition for ALL ticket types (Bug, Enhancement, CR, Analysis), at ALL workflow steps, in ALL scenarios. No automatic, implicit, or proactive Jira comments are permitted under any circumstances.
-- The ONLY exception: if the user explicitly types "add note in ticket" with the note content — only then may a Jira comment be posted.
-- Only link the PR URL to the ticket using the Jira issue linking feature (not comments)
+- **NEVER post any comment, note, or worklog to a ticket in the ticket tracker** — this is an absolute prohibition for ALL ticket types (Bug, Enhancement, CR, Analysis), at ALL workflow steps, in ALL scenarios. No automatic, implicit, or proactive ticket comments are permitted under any circumstances.
+- The ONLY exception: if the user explicitly types "add note in ticket" with the note content — only then may a ticket comment be posted.
+- Only link the PR URL to the ticket using the ticket tracker's issue-linking feature (not comments)
 
 ---
 
@@ -579,29 +584,29 @@ Reviewers:     <comma-separated emails provided by user>
 ────────────────────────────────────────────────────────
 MANUAL STEPS REQUIRED:
 
-1. Link PR to Jira Ticket:
-   a. Open Jira ticket: <Jira_URL>
-   b. Go to "Development" section (right panel)
-   c. Click "Create branch" or "+" icon
+1. Link PR to the ticket:
+   a. Open the ticket in the ticket tracker: <Ticket_URL>
+   b. Go to the ticket's development / linked-work section (location varies by tracker)
+   c. Choose the option to link a branch or pull request
    d. Paste PR URL: <PR_link>
-   e. Click "Link"
+   e. Confirm the link
    
    Alternative method:
-   - In PR description, ensure Jira ticket ID is mentioned
-   - Jira will auto-detect and link (if integration configured)
+   - In PR description, ensure the ticket ID is mentioned
+   - The ticket tracker will auto-detect and link (if integration configured)
 
 2. Verify reviewers are assigned:
    - Open PR: <PR_link>
    - Check that reviewers are listed: <reviewer_emails>
-   - If not auto-assigned, manually add them in Bitbucket/GitHub
+   - If not auto-assigned, manually add them in {{SCM_PLATFORM}}
 
 ────────────────────────────────────────────────────────
 Next Steps:
 1. PR review by team
-2. Merge to Development
+2. Merge to {{BASE_BRANCHES}}
 3. Deploy to Test environment
 4. QA validation
-5. Merge to Main (Production)
+5. Merge to the production-release branch (per `.ai/governance/scm-workflow.md` Base Branches)
 ```
 
 ---
@@ -618,8 +623,8 @@ Next Steps:
 | Third-party dependency needed | STOP — Get explicit approval |
 | > 3 files for Bug fix | STOP — Confirm scope expansion |
 | Security vulnerability found | STOP — Raise dedicated security ticket |
-| Current branch != Development | STOP — Warn user; must switch to Development first |
-| User has NOT typed "PUSH BRANCH" or "PUSH" | STOP — Do not push |
+| Current branch != {{BASE_BRANCHES}} | STOP — Warn user; must switch to {{BASE_BRANCHES}} first |
+| User has NOT typed "PUSH" | STOP — Do not push |
 
 ### Escalation Path
 
@@ -648,14 +653,14 @@ Description: Account balance shows negative value after payment processing. Busi
 ```
 1. ✅ Loaded .ai/knowledge-base.md — Found relevant business rule
 2. ✅ Loaded domain-engineer.agent.md — Loaded validation patterns
-3. ✅ Fetched Jira PROJ-1234 — Confirmed description matches
+3. ✅ Fetched ticket PROJ-1234 — Confirmed description matches
 4. ✅ Pre-Code Analysis:
    - Affected Layer: Service
    - Impacted Method: ProcessPayment()
    - Risk: Low — Isolated bug fix
    - Scope: Add validation before balance deduction
 5. ✅ User confirmed analysis
-6. ✅ Branch check: on Development → pulled latest → user chose Option B
+6. ✅ Branch check: on {{BASE_BRANCHES}} → pulled latest → user chose Option B
 7. ✅ Created branch: BUG/PROJ-1234_Fix_Negative_Balance
 7. ✅ Implemented fix:
    - Modified: relevant service implementation file
@@ -664,7 +669,7 @@ Description: Account balance shows negative value after payment processing. Busi
 8. ✅ Build passed
 9. ✅ User confirmed commit (yes) → committed changes
 10. ✅ Presented changes to user
-11. ✅ User typed "PUSH BRANCH"
+11. ✅ User typed "PUSH"
 12. ✅ Pushed branch
 13. ✅ Created PR #567
 
@@ -675,14 +680,13 @@ Description: Account balance shows negative value after payment processing. Busi
 
 ## Configuration & Customization
 
-### Jira Integration
-Configure Jira credentials in workspace settings or environment variables:
-- `JIRA_URL`
-- `JIRA_USERNAME`
-- `JIRA_API_TOKEN`
+### Ticket Tracker Integration
+Configure the ticket tracker's credentials (URL, username, API token — the exact names depend on the
+tracker and MCP server in use) in workspace settings or environment variables; see the MCP setup
+section of `README.md`.
 
-### Bitbucket Integration
-Ensure the Bitbucket MCP server is configured in `.vscode/mcp.json` (never commit this file — see `scm-workflow.md` Section 4) with workspace/repo access for `{{REPO_REMOTE_NAME}}`.
+### {{SCM_PLATFORM}} Integration
+Ensure the {{SCM_PLATFORM}} MCP server is configured in `.vscode/mcp.json` (never commit this file — see `scm-workflow.md` Section 4) with workspace/repo access for `{{REPO_REMOTE_NAME}}`.
 
 ### Default Reviewers
 No automatic default-reviewer config exists in this workspace — reviewer emails are always collected interactively in STEP 9 (Pre-Push Prompt), per the minimum counts in that section.
@@ -691,7 +695,7 @@ No automatic default-reviewer config exists in this workspace — reviewer email
 
 ## Non-Negotiable Rules Summary
 
-1. ✅ **NEVER push without "PUSH BRANCH" or "PUSH" approval**
+1. ✅ **NEVER push without "PUSH" approval**
 2. ✅ **ALWAYS load domain knowledge first**
 3. ✅ **ALWAYS perform pre-code analysis and get confirmation**
 4. ✅ **ALWAYS validate build passes before push**
@@ -712,7 +716,7 @@ This agent is successful when:
 - ✅ Build passes
 - ✅ Code follows all governance rules
 - ✅ PR created and ready for review
-- ✅ User only needs to type "PUSH BRANCH" or "PUSH" — everything else is automated
+- ✅ User only needs to type "PUSH" — everything else is automated
 
 
 ---

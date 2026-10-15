@@ -52,7 +52,7 @@ runSubagent(
     7. Validate build
     8. Show testing checklist in chat
     9. Show changes summary
-    10. Wait for 'PUSH BRANCH' or 'PUSH' approval
+    10. Wait for 'PUSH' approval
     11. Ask for reviewer emails
     12. Push and create PR
     13. Provide PR-to-Jira linking instructions
@@ -81,7 +81,7 @@ I'll process this ticket using the automated workflow.
 
 <Relay progress updates to user>
 
-<Wait for "PUSH BRANCH" or "PUSH" approval>
+<Wait for "PUSH" approval>
 
 <Complete and report results>
 ```
@@ -93,7 +93,6 @@ I'll process this ticket using the automated workflow.
 | `fix ticket` | Start automated ticket processing |
 | `process ticket` | Start automated ticket processing |
 | `auto fix` | Start automated ticket processing |
-| `PUSH BRANCH` | Approve branch push and PR creation (relay to processor) |
 | `PUSH` | Approve branch push and PR creation (relay to processor) |
 | `Show Diff` | Show detailed file changes (relay to processor) |
 | `Modify` | Request additional changes (relay to processor) |
