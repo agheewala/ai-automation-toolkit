@@ -69,7 +69,7 @@ Before doing ANYTHING, you MUST load these files in this order:
 
 ### A. Domain Knowledge (Authoritative Source)
 ```
-1. Read `.ai/knowledge-base.md` — Domain rules, supplement types, statuses, business logic
+1. Read `.ai/knowledge-base.md` — Domain rules, core entity types, statuses, business logic
 2. Load domain engineer expertise from `.github/agents/domain-engineer.agent.md`
 ```
 
@@ -164,7 +164,7 @@ Root Cause:           <Best hypothesis based on description>
 
 IMPACT ANALYSIS
 ────────────────────────────────────────────────────────
-Affected Layers:      [ ] UI  [ ] Controller  [ ] Service  [ ] DAO  [ ] DB
+Affected Layers:      [ ] UI  [ ] Controller  [ ] Service  [ ] Data Access  [ ] DB
 Affected Pages:       <List or TBD>
 Impacted Methods:     <List or TBD>
 Estimated Files:      <Count>
@@ -242,9 +242,9 @@ Choose A, B, or type a custom branch name:
 
 | Type | Format | Example |
 |------|--------|---------|
-| Bug | `BUG/<TicketID>_<Short_Title>` | `BUG/PROJ-1234_Fix_Escrow_Calc` |
-| Enhancement | `ER/<TicketID>_<Short_Title>` | `ER/PROJ-5678_Add_Fleet_Search` |
-| Change Request | `CR/<TicketID>_<Short_Title>` | `CR/PROJ-9012_Update_Fee_Logic` |
+| Bug | `BUG/<TicketID>_<Short_Title>` | `BUG/PROJ-1234_Fix_Balance_Calc` |
+| Enhancement | `ER/<TicketID>_<Short_Title>` | `ER/PROJ-5678_Add_Order_Search` |
+| Change Request | `CR/<TicketID>_<Short_Title>` | `CR/PROJ-9012_Update_Pricing_Logic` |
 | Analysis | No branch — No code changes | N/A |
 
 ### Execution (If Branch Created)
@@ -394,7 +394,7 @@ AFFECTED PAGES:
   • <Page 2 URL/Path>
 
 TEST DATA NEEDED:
-  • <Data requirements — e.g., "Account with escrow balance">
+  • <Data requirements — e.g., "Account with a non-zero balance">
   • <Data requirements>
 
 ────────────────────────────────────────────────────────
@@ -641,7 +641,7 @@ Issue Detected
 ```
 TicketID: PROJ-1234
 Type: Bug
-Description: Escrow balance shows negative value after payment processing. Business rule violation.
+Description: Account balance shows negative value after payment processing. Business rule violation.
 ```
 
 ### Agent Execution

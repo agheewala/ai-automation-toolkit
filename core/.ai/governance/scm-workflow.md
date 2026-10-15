@@ -96,9 +96,9 @@ git commit -m "[PROJ-####] Imperative description of change"
 
 **Examples:**
 ```
-[PROJ-1252] Fix null reference on fleet weight group load
-[PROJ-2001] Add export button to weight group grid
-[PROJ-3500] Update search filter to include USDOT lookup
+[PROJ-1252] Fix null reference on order group load
+[PROJ-2001] Add export button to order group grid
+[PROJ-3500] Update search filter to include customer ID lookup
 [PROJ-4100] Add aria-label to close modal button
 ```
 

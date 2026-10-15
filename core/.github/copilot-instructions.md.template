@@ -54,7 +54,7 @@ of truth for understanding the system.
 Copilot must always refer to and align its suggestions with:
 
 1. `.ai/knowledge-base.md`
-   - **Canonical single source** combining domain overview, supplement types/statuses, cross-cutting rules, module ownership map, DB table ownership, transaction flow sequences, code patterns, and naming conventions
+   - **Canonical single source** combining domain overview, core entity types/statuses, cross-cutting rules, module ownership map, DB table ownership, transaction flow sequences, code patterns, and naming conventions
    - Primary anchor for ALL domain, rule, architecture, and module-boundary decisions
    - Replaces the former `domain-context.md` + `architecture.md` split
 

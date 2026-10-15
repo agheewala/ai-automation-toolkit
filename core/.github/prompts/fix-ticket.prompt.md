@@ -68,7 +68,7 @@ fix ticket
 
 TicketID: PROJ-1234
 Type: Bug
-Description: Escrow balance going negative after payment
+Description: Account balance going negative after payment
 ```
 
 ### You respond:

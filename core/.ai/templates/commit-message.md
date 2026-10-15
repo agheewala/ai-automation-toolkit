@@ -25,17 +25,17 @@
 
 ### Bug Fix
 ```
-[PROJ-1234] Fix null reference on fleet weight group load
+[PROJ-1234] Fix null reference on order group load
 ```
 
 ### Enhancement
 ```
-[PROJ-5678] Add export button to weight group grid
+[PROJ-5678] Add export button to order group grid
 ```
 
 ### Change Request
 ```
-[PROJ-9012] Update search filter to include USDOT lookup
+[PROJ-9012] Update search filter to include customer ID lookup
 ```
 
 ### Accessibility Fix
@@ -50,7 +50,7 @@
 
 ### Rollback Commit
 ```
-[PROJ-1234] Rollback: Restore fleet load query to pre-ticket state
+[PROJ-1234] Rollback: Restore order load query to pre-ticket state
 ```
 
 ---
@@ -78,7 +78,7 @@ Related: [Other-TicketID] (if applicable)
 |---|---|
 | `fixed bug` | No ticket reference; past tense; too vague |
 | `PROJ-9012 changes` | No brackets; "changes" is meaningless |
-| `[PROJ-9012] Updated the search filter functionality to now include the ability to search by USDOT number as well as the existing fields` | Too long; past tense; verbose |
+| `[PROJ-9012] Updated the search filter functionality to now include the ability to search by customer ID as well as the existing fields` | Too long; past tense; verbose |
 | `WIP` / `temp` / `test` | Not a valid commit message |
 | `[PROJ-9012] fix` | Too vague — describe what was fixed |
 | Committing with no ticket reference | Every commit must be traceable to a ticket |

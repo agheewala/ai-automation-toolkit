@@ -56,7 +56,7 @@ This section is filled in by `generators/create-domain-agent.prompt.md` from the
 project's own `knowledge-base.md` and `coding-standards.md` — do not hand-author architecture
 facts here. When populated, it must cover the project's layering rules (which layer may call
 which), the module/solution boundaries that must not be crossed without justification, the
-project's naming conventions for DAOs/services/controllers/view models, and the code pattern
+project's naming conventions for data-access classes/services/controllers/view models, and the code pattern
 checklist used to verify generated or reviewed code against those conventions.
 
 ---
@@ -113,7 +113,7 @@ Automatically flag these patterns to the user before proceeding:
 | Touching tables/fields identified as financial (fees, invoices, payments) in the data dictionary | Financial integrity | Confirm scope before writing |
 | Touching tables/fields identified as credential/inventory issuance in the data dictionary | Credential issuance | Confirm the entity is at the correct lifecycle status first |
 | Changing shared/common libraries used by multiple modules | Cross-module impact | Require team lead sign-off |
-| Adding a new DAO or service that crosses an existing module boundary | Architectural boundary | Explain and confirm |
+| Adding a new Data Access class or service that crosses an existing module boundary | Architectural boundary | Explain and confirm |
 | Modifying shared constants or enumerated type definitions | System-wide impact | Flag — may affect all modules |
 | Any change to batch/deferred processing logic | Deferred state risk | Senior review required |
 | Changes affecting externally-facing or restricted-role visibility | Security boundary | Explicit review required |

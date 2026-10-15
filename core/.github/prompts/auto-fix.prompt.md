@@ -204,7 +204,7 @@ fix ticket
 
 TicketID: PROJ-1234
 Type: Bug
-Description: Escrow balance showing negative
+Description: Account balance showing negative
 ```
 
 **Your Action:**
@@ -221,7 +221,7 @@ ANALYSIS SUMMARY
 ────────────────────────────────────────────────────────
 TicketID:        PROJ-1234
 Type:            Bug
-Expected Fix:    Add validation in EscrowService
+Expected Fix:    Add validation in BalanceService
 Risk:            Low
 Files:           1
 

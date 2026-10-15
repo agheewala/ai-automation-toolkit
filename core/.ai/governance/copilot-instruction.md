@@ -205,7 +205,7 @@ Then ask the user:
 > "Analysis is complete. Would you like the output saved as a `.txt` file? (y / yes)"
 
 - **With ticket ID:** name the file `[TicketID]_Analysis.txt`
-- **Without ticket ID:** use a descriptive name (e.g. `Fleet_Load_Null_Reference_Analysis.txt`)
+- **Without ticket ID:** use a descriptive name (e.g. `Order_Load_Null_Reference_Analysis.txt`)
 
 ---
 
@@ -227,10 +227,10 @@ Then ask the user:
 
 All SQL scripts must comply with:
 
-- **SUPPORT_USERID format** (mandatory for UPDATE and INSERT; not required for DELETE)
+- **Audit-stamp column format** (mandatory for UPDATE and INSERT; not required for DELETE)
 - **WHERE clause validation** (mandatory for UPDATE and DELETE)
 - **Record count verification** (mandatory comment before execution)
-- **Transaction safety** (BEGIN TRANSACTION / COMMIT / ROLLBACK)
+- **Transaction safety** (explicit transaction control — e.g. BEGIN TRANSACTION / COMMIT / ROLLBACK, or your database's equivalent)
 - **Backup recommendations** (documented before execution)
 
 **Never create SQL scripts without consulting `governance/SQL_Guidelines.md` first.**
@@ -273,7 +273,7 @@ See `governance/coding-standards.md` for project-specific component patterns.
 - ❌ No hard-coded colors (use CSS variables or theme tokens)
 - ❌ No inline styles (unless the project explicitly allows for a specific case)
 - ✅ Reuse existing utility classes before adding any new CSS
-- ✅ Respect all themes: default, dark, high-contrast (AODA), and any other active themes
+- ✅ Respect all themes: default, dark, high-contrast / accessibility themes, and any other active themes
 - ✅ New CSS must be added with start/end comments identifying the change
 
 ---

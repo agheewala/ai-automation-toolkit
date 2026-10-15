@@ -6,6 +6,11 @@ This document defines the mandatory rules for validating SQL scripts used for da
 > `generators/create-knowledge-base.prompt.md` / the data-dictionary export — never hardcode a
 > specific project's database name in this `core/` file).
 
+> **Dialect note:** Examples below show SQL Server and Oracle syntax side by side. Use whichever
+> matches `{{DB_NAME}}`'s engine, and follow its schema-qualification convention (for example,
+> SQL Server projects may prefix objects with a schema such as `dbo.`; Oracle projects typically
+> use the owning schema or none). Do not assume a dialect-specific form applies to every project.
+
 ---
 
 ## 0. Authoritative Data Source (MANDATORY — Consult First)
@@ -16,7 +21,7 @@ data analysis, or a new/modified stored procedure), consult `.ai/data-dictionary
 | File | Use it to verify |
 |---|---|
 | `.ai/data-dictionary/db-schema-dictionary.md` | Table exists, column exists, exact column name/casing, data type, length/precision, nullability, primary key, default, and business description — required for correct literal formatting (quoting strings, date formats, decimal precision) and for building a correct `WHERE` clause |
-| `.ai/data-dictionary/stored-procedures.md` | Whether a stored procedure already performs the needed operation (reuse/call it rather than writing new inline SQL), and the established script conventions (parameter naming, `OUT_SQLCODE OUTPUT`, `_E` error-correction variants, delimiter-parsed list parameters) to follow if a new/modified procedure is required |
+| `.ai/data-dictionary/stored-procedures.md` | Whether a stored procedure already performs the needed operation (reuse/call it rather than writing new inline SQL), and the established script conventions (parameter naming, output/status parameters, error-correction variants, delimiter-parsed list parameters, as documented in the catalog) to follow if a new/modified procedure is required |
 | `.ai/data-dictionary/stored-procedure-dataflows.md` | Quick visual map of which tables a candidate procedure reads/writes, before diving into the full script |
 
 Rules:
@@ -25,111 +30,114 @@ Rules:
   `behavior/decision-rules.md` STOP condition #9).
 - If the data dictionary conflicts with an assumption made from reading application code only,
   the data dictionary wins for schema facts (table/column/type/nullability); the application
-  (service/DAO) layer still governs what business logic is actually enforced. Flag any conflict
-  between the two to the user.
+  (service/Data Access) layer still governs what business logic is actually enforced. Flag any
+  conflict between the two to the user.
 - Full column-layout reference and usage rules: `.ai/data-dictionary/README.md`.
 
-This step is in addition to — not a replacement for — the SUPPORT_USERID, WHERE clause, record
+This step is in addition to — not a replacement for — the audit-stamp column, WHERE clause, record
 count, and reversal script rules below.
 
 ---
 
-## 1. SUPPORT_USERID (MANDATORY)
+## 1. Audit-Stamp Column (MANDATORY)
 
-**SUPPORT_USERID is MANDATORY for UPDATE and INSERT statements ONLY.**  
-**DELETE statements do NOT require SUPPORT_USERID.**
+Every production data fix must record **which support ticket changed the row**. The project's
+audit-stamp column (its exact name is in the data dictionary / `.ai/knowledge-base.md`; this
+document calls it the *audit-stamp column*) is the column that holds this value.
 
-### Format Based on Database Type:
+**The audit-stamp column is MANDATORY for UPDATE and INSERT statements ONLY.**  
+**DELETE statements do NOT require it.**
+
+### Stamp Value Format:
+
+`<STAMP_PREFIX>-<ticket number>_<yyyymmdd>` — the prefix convention (fixed prefix/suffix, optional
+project or jurisdiction code) is defined by the project and recorded in `.ai/knowledge-base.md`.
+If the project has not documented one, ask the user before generating scripts.
 
 #### SQL Server:
 ```sql
-SUPPORT_USERID = 'TTxxSD-####_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+AuditStampCol = '<STAMP_PREFIX>-####_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 ```
 
 #### Oracle:
 ```sql
-SUPPORT_USERID = 'TTxxSD-####_' || TO_CHAR(SYSDATE, 'YYYYMMDD')
+AuditStampCol = '<STAMP_PREFIX>-####_' || TO_CHAR(SYSDATE, 'YYYYMMDD')
 ```
 
 **Where:**
-- `TT` = Fixed prefix
-- `xx` = 2-character jurisdiction/project code
-- `SD` = Fixed suffix
+- `<STAMP_PREFIX>` = project-defined prefix (may embed a project/jurisdiction code)
 - `####` = Ticket/change number
 - `_` = Underscore separator
+- date portion = current date in `yyyymmdd`
 
-**Examples:**
-- `'TTSCSD-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)` → SC Project
-- `'TTxxSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)` → Other Project
-- `'TTxxSD-923_' || TO_CHAR(SYSDATE, 'YYYYMMDD')` → Other Project (Oracle)
-
-### Project Auto-Detection:
-The AI will extract the project code from positions 3-4 in SUPPORT_USERID:
-- `TTSCSD-####` → SC Project
-- `TTxxSD-####` → Other Project (where xx = any other jurisdiction code)
+### Project Policy Tier Detection:
+If the project's stamp prefix embeds a project/jurisdiction code, extract it and look up the policy
+tier (for example, whether a reversal script is required) in the project's documented mapping in
+`.ai/knowledge-base.md`. If the code or mapping cannot be determined, report
+"CANNOT BE DETERMINED" and ask — never guess.
 
 ### DELETE Statement Rules:
 
-**DELETE statements do NOT require SUPPORT_USERID** because:
+**DELETE statements do NOT require the audit-stamp column** because:
 - The record is being removed from the database
-- There is no field to store the SUPPORT_USERID value
+- There is no field to store the stamp value
 - Production databases typically have DELETE triggers or audit tables that automatically capture deletion metadata
 
 **DELETE statements only need:**
 1. WHERE clause (MANDATORY)
 2. Record count comment (MANDATORY)
-3. Reversal script (MANDATORY for SC Project only)
+3. Reversal script (MANDATORY for reversal-required projects only)
 
 ---
 
-## 2. Reversal Script (MANDATORY for SC Project ONLY)
+## 2. Reversal Script (MANDATORY for Reversal-Required Projects ONLY)
 
-**Reversal script is ONLY required for SC project.**
+**A reversal script is only required for projects whose policy (see `.ai/knowledge-base.md`) marks it mandatory.** For all other projects it is recommended but not enforced.
 
-- **SC Project** (`TTSCSD-####`): Reversal script is **MANDATORY** - Script will FAIL without it
-- **Other Projects** (`TTxxSD-####`): Reversal script is **NOT required**
+- **Reversal-required projects**: Reversal script is **MANDATORY** — the script will FAIL validation without it
+- **Other projects**: Reversal script is **NOT required**
 
-### SUPPORT_USERID in Reversal Scripts:
-- **If original value was NOT blank/empty**: Use the same SUPPORT_USERID format with ticket number
+### Audit-Stamp Value in Reversal Scripts:
+- **If original value was NOT blank/empty**: Use the same stamp format with the ticket number
 - **If original value WAS blank/empty**: Use empty string `''` to restore original state
 
-**SC Project Example (Restoring Non-Empty Value):**
+**Reversal-Required Example (Restoring Non-Empty Value):**
 ```sql
 UPDATE TableName
 SET StatusCode = 'ACTIVE',
-    SUPPORT_USERID = 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 WHERE RecordID = 98765
 --COUNT: 1
 
 --REVERSE QUERY
 --UPDATE TableName
 --SET StatusCode = 'PENDING',
---    SUPPORT_USERID = 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+--    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 --WHERE RecordID = 98765
 --COUNT: 1
 ```
 
-**SC Project Example (Restoring Empty/Blank Value):**
+**Reversal-Required Example (Restoring Empty/Blank Value):**
 ```sql
 UPDATE TableName
 SET LAST_UPD_TS = CURRENT_TIMESTAMP,
-    SUPPORT_USERID = 'TTSCSD-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+    AuditStampCol = '<STAMP_PREFIX>-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 WHERE RecordID = 98765
 --COUNT: 1
 
 --REVERSE QUERY
 --UPDATE TableName
 --SET LAST_UPD_TS = '2026-04-16 10:50:08.000',
---    SUPPORT_USERID = ''
+--    AuditStampCol = ''
 --WHERE RecordID = 98765
 --COUNT: 1
 ```
 
-**Other Project Example:**
+**Other Project Example (no reversal required):**
 ```sql
 UPDATE TableName
 SET StatusCode = 'ACTIVE',
-    SUPPORT_USERID = 'TTxxSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 WHERE RecordID = 98765
 --COUNT: 1
 ```
@@ -175,7 +183,7 @@ UPDATE Orders SET Status = 'Cancelled' -- FAIL: Missing WHERE clause
 ```sql
 UPDATE Orders
 SET Status = 'Cancelled',
-    SUPPORT_USERID = 'TTxxSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 WHERE OrderID = 45678
     AND Status = 'Pending'
 --COUNT: 1
@@ -189,20 +197,20 @@ WHERE OrderID = 45678
 
 ### Column Names (Recommended):
 ```sql
-INSERT INTO TableName (Column1, Column2, SUPPORT_USERID)
-VALUES ('Value1', 'Value2', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+INSERT INTO TableName (Column1, Column2, AuditStampCol)
+VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
 ### Without Column Names (Must match table order exactly):
 ```sql
 INSERT INTO TableName
-VALUES ('Value1', 'Value2', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
 ### Unsafe Patterns (FAIL):
-- ❌ INSERT without SUPPORT_USERID
+- ❌ INSERT without the audit-stamp column
 - ❌ Missing record count
 - ❌ Inserting without validation of existing records (may cause duplicates)
 
@@ -211,8 +219,8 @@ VALUES ('Value1', 'Value2', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 -- Check for existing record first
 IF NOT EXISTS (SELECT 1 FROM TableName WHERE UniqueKey = 'Value1')
 BEGIN
-    INSERT INTO TableName (Column1, Column2, SUPPORT_USERID)
-    VALUES ('Value1', 'Value2', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+    INSERT INTO TableName (Column1, Column2, AuditStampCol)
+    VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 END
 --COUNT: 1
 ```
@@ -222,10 +230,10 @@ END
 ## 6. Validation Rules Summary
 
 ### MANDATORY (FAIL if missing):
-1. ✅ **SUPPORT_USERID** - Required for UPDATE/INSERT only (NOT for DELETE)
+1. ✅ **Audit-stamp column** - Required for UPDATE/INSERT only (NOT for DELETE)
 2. ✅ **Record Count** - Any clear format with number
 3. ✅ **WHERE Clause** - For UPDATE/DELETE statements
-4. ✅ **Reversal Script** - ONLY for SC project
+4. ✅ **Reversal Script** - ONLY for reversal-required projects
 5. ✅ **INSERT Safety** - Column names recommended, no duplicates
 
 ### OPTIONAL (WARNING only):
@@ -238,46 +246,47 @@ END
 ## 7. Validation Process
 
 ### Step 1: Identify Statement Type
-- **UPDATE/INSERT**: SUPPORT_USERID is MANDATORY
-- **DELETE**: SUPPORT_USERID is NOT required
+- **UPDATE/INSERT**: Audit-stamp column is MANDATORY
+- **DELETE**: Audit-stamp column is NOT required
 
-### Step 2: Check SUPPORT_USERID (for UPDATE/INSERT only)
+### Step 2: Check Audit-Stamp Column (for UPDATE/INSERT only)
 - **UPDATE/INSERT**: If missing from SET/VALUES clause → **FAIL** immediately
-- If present → Extract project code (characters 3-4 after 'TT')
+- If present → Extract the project code (if the project's prefix embeds one)
 
-### Step 3: Validate Based on Project
-- **SC Project**: Require reversal script
-- **Other Projects**: Do NOT require reversal script
+### Step 3: Validate Based on Project Policy
+- **Reversal-required projects**: Require reversal script
+- **Other projects**: Do NOT require reversal script
 
 ### Step 4: Validate Statement Type
-- **UPDATE**: Check WHERE clause, record count, SUPPORT_USERID in SET clause
+- **UPDATE**: Check WHERE clause, record count, audit-stamp column in SET clause
 - **DELETE**: Check WHERE clause, record count only
-- **INSERT**: Check SUPPORT_USERID in VALUES/SET clause, record count, proper syntax
+- **INSERT**: Check audit-stamp column in VALUES/SET clause, record count, proper syntax
 
 ### Step 5: Validate Database Syntax
 - **SQL Server**: `CONVERT(VARCHAR(8), GETDATE(), 112)`
 - **Oracle**: `TO_CHAR(SYSDATE, 'YYYYMMDD')`
+- Other engines: use the project's equivalent date-formatting function
 
 ---
 
 ## 8. Validation Output Format
 
-### If SUPPORT_USERID Missing (UPDATE/INSERT only):
+### If Audit-Stamp Column Missing (UPDATE/INSERT only):
 ```
 Project: ❌ CANNOT BE DETERMINED
 Result: ❌ FAIL
-Issue: SUPPORT_USERID missing - add it before validation can proceed
+Issue: Audit-stamp column missing - add it before validation can proceed
 ```
 
 ### If All Rules Pass:
 ```
-Project: [SC/Other]
+Project: [Reversal-required / Other]
 Result: ✅ PASS
 ```
 
 ### If Rules Fail:
 ```
-Project: [SC/Other]
+Project: [Reversal-required / Other]
 Result: ❌ FAIL
 Issues:
 - [List specific issues]
@@ -285,20 +294,20 @@ Issues:
 
 ### For DELETE Statements:
 ```
-Note: DELETE statements do not require SUPPORT_USERID
-Project: Determined from reversal script (if SC project) or marked as "Other"
-Result: [PASS/FAIL based on WHERE clause, record count, and reversal script if SC]
+Note: DELETE statements do not require the audit-stamp column
+Project: Determined from reversal script (if reversal-required project) or marked as "Other"
+Result: [PASS/FAIL based on WHERE clause, record count, and reversal script if required]
 ```
 
 ---
 
 ## 9. Complete Examples
 
-### UPDATE - SC Project (with reversal):
+### UPDATE - Reversal-Required Project (with reversal):
 ```sql
 UPDATE TableName
 SET Status = 'APPROVED',
-    SUPPORT_USERID = 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 WHERE RecordID = 12345
     AND Status = 'PENDING'
 --COUNT: 1
@@ -306,30 +315,30 @@ WHERE RecordID = 12345
 --REVERSE QUERY
 --UPDATE TableName
 --SET Status = 'PENDING',
---    SUPPORT_USERID = 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+--    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 --WHERE RecordID = 12345
 --COUNT: 1
 ```
 
-### UPDATE - SC Project (restoring blank SUPPORT_USERID):
+### UPDATE - Reversal-Required Project (restoring blank audit-stamp value):
 ```sql
-UPDATE MCS_INVENTORY 
+UPDATE Inventory
 SET LAST_UPD_TS = CURRENT_TIMESTAMP,
-    SUPPORT_USERID = 'TTSCSD-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE PROD_CNTL_NBR = '26979' 
-    AND PROD_TYPE = 'MCD' 
-    AND PROD_EXP_CCYY = 2026 
-    AND ACCOUNT_NBR = 36980936
+    AuditStampCol = '<STAMP_PREFIX>-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE ItemControlNbr = '26979'
+    AND ItemType = 'ABC'
+    AND ItemYear = 2026
+    AND AccountNbr = 36980936
 --COUNT: 1
 
 --REVERSE QUERY
---UPDATE MCS_INVENTORY 
+--UPDATE Inventory
 --SET LAST_UPD_TS = '2026-04-16 10:50:08.000',
---    SUPPORT_USERID = ''
---WHERE PROD_CNTL_NBR = '26979' 
---    AND PROD_TYPE = 'MCD' 
---    AND PROD_EXP_CCYY = 2026 
---    AND ACCOUNT_NBR = 36980936
+--    AuditStampCol = ''
+--WHERE ItemControlNbr = '26979'
+--    AND ItemType = 'ABC'
+--    AND ItemYear = 2026
+--    AND AccountNbr = 36980936
 --COUNT: 1
 ```
 
@@ -337,16 +346,16 @@ WHERE PROD_CNTL_NBR = '26979'
 ```sql
 UPDATE TableName
 SET Status = 'APPROVED',
-    SUPPORT_USERID = 'TTxxSD-5678_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+    AuditStampCol = '<STAMP_PREFIX>-5678_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 WHERE RecordID = 54321
     AND Status = 'PENDING'
 --1 row affected
 ```
 
-### INSERT - SC Project (with reversal):
+### INSERT - Reversal-Required Project (with reversal):
 ```sql
-INSERT INTO TableName (Column1, Column2, Status, SUPPORT_USERID)
-VALUES ('Value1', 'Value2', 'ACTIVE', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+INSERT INTO TableName (Column1, Column2, Status, AuditStampCol)
+VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 
 --REVERSE QUERY
@@ -357,12 +366,12 @@ VALUES ('Value1', 'Value2', 'ACTIVE', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDA
 
 ### INSERT - Other Project (no reversal):
 ```sql
-INSERT INTO TableName (Column1, Column2, Status, SUPPORT_USERID)
-VALUES ('Value1', 'Value2', 'ACTIVE', 'TTxxSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+INSERT INTO TableName (Column1, Column2, Status, AuditStampCol)
+VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
-### DELETE - SC Project (with reversal):
+### DELETE - Reversal-Required Project (with reversal):
 ```sql
 DELETE FROM TableName
 WHERE RecordID = 12345
@@ -370,22 +379,22 @@ WHERE RecordID = 12345
 --COUNT: 1
 
 --REVERSE QUERY
---INSERT INTO TableName (RecordID, Status, SUPPORT_USERID)
---VALUES (12345, 'PENDING', 'TTSCSD-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+--INSERT INTO TableName (RecordID, Status, AuditStampCol)
+--VALUES (12345, 'PENDING', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
 ### DELETE - Other Project (no reversal):
 ```sql
-DELETE FROM mv_web_pay
-WHERE web_pay_uid = 66004
+DELETE FROM Payments
+WHERE PaymentUid = 66004
 --COUNT: 1
 ```
 
 ### Oracle INSERT - Other Project:
 ```sql
-INSERT INTO MV_WEB_PAY (WEB_PAY_UID, PAY_STAT_IND, SUPPORT_USERID)
-VALUES (66003, 'V', 'TTxxSD-923_' || TO_CHAR(SYSDATE, 'YYYYMMDD'))
+INSERT INTO Payments (PaymentUid, PayStatInd, AuditStampCol)
+VALUES (66003, 'V', '<STAMP_PREFIX>-923_' || TO_CHAR(SYSDATE, 'YYYYMMDD'))
 --COUNT: 1
 ```
 

@@ -20,7 +20,7 @@ Stop all activity and notify the user immediately if any of the following are tr
 | 7 | Shared library (`{{SHARED_LIBS}}`) change required without team lead sign-off | STOP — escalate |
 | 8 | {{RISK_THRESHOLDS}} | STOP — confirm scope with user |
 | 9 | New DB objects (columns, tables, stored procs) required — not found in `.ai/data-dictionary/` and no confirmation from user | STOP — confirm before generating DDL |
-| 10 | Creating SQL scripts (production data fixes, ad-hoc queries, or stored procedures) without first consulting `.ai/data-dictionary/` and `governance/SQL_Guidelines.md` | STOP — read `governance/SQL_Guidelines.md` Section 0 and the relevant data dictionary file(s) first; validate table/column existence, SUPPORT_USERID, WHERE clauses, and transaction safety |
+| 10 | Creating SQL scripts (production data fixes, ad-hoc queries, or stored procedures) without first consulting `.ai/data-dictionary/` and `governance/SQL_Guidelines.md` | STOP — read `governance/SQL_Guidelines.md` Section 0 and the relevant data dictionary file(s) first; validate table/column existence, the audit-stamp column, WHERE clauses, and transaction safety |
 | 11 | A third-party library would need to be added | STOP — get explicit approval first |
 | 12 | The user has NOT typed `Push Code` | STOP — do not push |
 | 13 | Any rule in `governance/copilot-instruction.md` would be violated | STOP — flag the conflict |
@@ -87,7 +87,7 @@ Never make a guess to unblock yourself. Always ask.
 | Field name or method name not known | Mark as `TBD` — ask the user |
 | DB column / stored procedure name not known | Check `.ai/data-dictionary/` (schema + stored procedure catalog) first. If still not found, mark as `TBD` — never invent |
 | Business rule unclear | Ask the user — never assume |
-| UI label text missing | Use `AppResources.TBD` placeholder — ask for the resource key |
+| UI label text missing | Use a clearly-marked `TBD` placeholder in the project's label/resource mechanism — ask for the resource key |
 | Scope boundary unclear (what is in vs. out) | Ask explicitly — do not expand scope silently |
 | Two valid technical approaches exist | Present both options to user with trade-offs — let user decide |
 

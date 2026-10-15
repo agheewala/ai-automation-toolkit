@@ -25,7 +25,7 @@
 |---|---|
 | **A01 Broken Access Control** | Shared authenticated base/middleware validates session on every request; role checks enforced in service layer |
 | **A02 Cryptographic Failures** | No PII or secrets in logs; connection strings in environment-level secrets only |
-| **A03 Injection** | Parameterised SQL stored procedure calls only; no dynamic SQL string concatenation |
+| **A03 Injection** | Parameterised queries only, following the project's DB-access convention documented in `.ai/knowledge-base.md` (e.g. stored procedure calls, prepared statements, or ORM parameters); no dynamic SQL string concatenation |
 | **A04 Insecure Design** | Input validated at system boundary; no client-side-only validation |
 | **A05 Security Misconfiguration** | Environment-specific config; no stack traces or debug info in production error responses |
 | **A06 Vulnerable Components** | OWASP Dependency Check runs via `dependencycheck-suppression.xml`; no unreviewed third-party additions |
