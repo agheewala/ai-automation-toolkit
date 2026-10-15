@@ -42,7 +42,12 @@ This section is filled in by `generators/create-domain-agent.prompt.md` from the
 project's own `knowledge-base.md` — do not hand-author business rules here. When populated,
 it must cover the project's domain terms/entities and their primary tables, the lifecycle(s)
 that govern core business entities, the enumerated transaction/operation types the system
-supports, and the non-negotiable business rules a senior engineer must always enforce.
+supports, and the non-negotiable business rules a senior engineer must always enforce —
+including lifecycle-gated prohibitions (e.g. never modify a record or issue a
+credential/artifact once its governing entity has passed a locked/terminal status),
+concurrency or locking constraints (e.g. only one active/open transaction allowed per entity
+at a time), and locale/currency/region assumptions the system must not hardcode (e.g. don't
+assume a single currency or jurisdiction if the project supports more than one).
 
 ---
 
@@ -81,10 +86,19 @@ checklist used to verify generated or reviewed code against those conventions.
 
 - **Never bypass the project's layering rules** — e.g. calling a data-access method directly
   from a controller when a service layer exists for that purpose.
+- **Never instantiate a data-access object directly with `new`** — always obtain it through
+  the project's factory/locator pattern, if one exists.
+- **Never embed SQL directly in controllers or services** — SQL belongs only in the project's
+  dedicated data-access layer.
 - **Never add inline business logic where the project's conventions say it belongs in a
   dedicated layer** (see Architectural Boundaries above).
-- **Never hardcode strings, statuses, or table/column names** — use the project's constants,
-  resource files, and the data dictionary.
+- **Never hardcode strings, statuses, table/column names, or jurisdiction/region/locale
+  identifiers** — use the project's constants, resource files, and the data dictionary.
+- **Never introduce a different data-access technology than the one the project already uses**
+  (e.g. adding an ORM to a project built on raw ADO.NET, or vice versa) without explicit
+  justification.
+- **Never skip the project's logging abstraction** — classes performing logic or DB calls
+  should log through it, not ad-hoc console/file writes.
 - **Never introduce a cross-module dependency** without explicit justification and user
   confirmation.
 - **Never bypass the project's authentication/authorization conventions.**

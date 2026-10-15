@@ -311,7 +311,10 @@ For any `.cshtml` or `.css` changes:
 
 ### D. Coding Standards Enforcement
 
-Every change MUST follow `.ai/governance/coding-standards.md` and the project's own conventions.
+Every change MUST follow `.ai/governance/coding-standards.md`:
+- ✅ Follow `.ai/governance/coding-standards.md` for project-specific conventions (naming, markup, styling, DB access)
+- ✅ Proper error handling with try-catch
+- ✅ Consistent naming conventions
 
 ---
 
