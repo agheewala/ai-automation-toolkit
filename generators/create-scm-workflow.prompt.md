@@ -57,8 +57,11 @@ Do not assume any single source-control platform or branch-prefix scheme. Detect
 > **No git repository yet?** The detection steps below use `git remote -v`, `git branch -a`, and
 > `git log`. If `CODE_ROOT` is not inside a git repository (no `.git` folder), do not attempt those
 > commands. Ask the user directly for the remote URL (or "none yet"), the platform, the ticket-type
-> branch prefixes, and the base-branch names. This is expected, not an error. These answers are
-> generator-specific questions, asked here rather than up front during `/sync-toolkit` Step 2.
+> branch prefixes, and the base-branch names. This is expected, not an error. If the user answers
+> "none yet", write the literal string `<remote URL not yet configured>` as the value of
+> `{{REPO_REMOTE_URL}}` (never leave it blank and never guess a URL), and list this in the final
+> report as a pending item: the user must update the remote URL in
+> `.ai/governance/scm-workflow.md` and the other files that carry it once a remote exists.
 
 - **Git remote** — run (or ask the user to confirm the output of) `git remote -v` / inspect
   `.git/config` in `CODE_ROOT` for the `origin` remote URL. Identify the hosting platform from the
@@ -97,9 +100,8 @@ drive every branch/PR the automated workflow creates) and must never be guessed.
 ## Content to Populate in `.ai/governance/scm-workflow.md`
 
 - **`{{REPO_REMOTE_URL}}`** — the real, **full** remote URL (never a short remote name such as
-  `origin`), e.g.
-  `https://bitbucket.org/<workspace>/<repo-slug>` or `https://github.com/<org>/<repo>`), used
-  verbatim in the "Repository" table and anywhere else in this file that references it.
+  `origin`), e.g. `https://bitbucket.org/<workspace>/<repo-slug>` or
+  `https://github.com/<org>/<repo>`, used verbatim in the "Repository" table and anywhere else in this file that references it.
 - **`{{BRANCH_PREFIX_TABLE}}`** — replace the generic `PROJ` placeholder and the single
   `<TYPE>` example with this project's actual ticket-type-to-prefix mapping: a "Type Reference"
   table (prefix → ticket type → when to use), real branch-name examples using the project's actual

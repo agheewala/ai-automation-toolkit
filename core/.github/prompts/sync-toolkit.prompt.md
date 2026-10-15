@@ -182,9 +182,13 @@ are not filled content, and substituting there would corrupt the instructions (a
 make it differ from the toolkit's Tier 1 copy on every update).
 
 **Duplicate occurrences in one file.** If a token appears more than once in the same file — for
-example once as the real standalone placeholder and once inside an explanatory note (typically a
-blockquote) that describes the token — fill only the standalone placeholder occurrence. Never
-fill, rewrite or delete the occurrence embedded in the prose describing it (for example, the
+example once as the real placeholder and once inside an explanatory note — fill the real
+placeholder occurrence(s) and leave the explanatory-note occurrence untouched. An **explanatory
+note** is specifically a blockquote (`>`) or HTML comment (`<!-- -->`) whose text is *about the
+token itself* (describing what it holds or who fills it). A token used inline as part of a normal
+sentence (e.g. "from `{{BASE_BRANCHES}}`") IS a real placeholder and MUST be filled — only skip a
+token when it appears inside a blockquote/comment that is explaining the token's purpose, not
+using its value. Never fill, rewrite or delete an explanatory-note occurrence (for example, the
 notes under `{{PROJECT_SPECIFIC_FIXES}}` in `custom-fixes.md` and under `{{STACK_CHECKLIST}}` in
 `wcag-fix-patterns.md` keep their literal token text). The same rule applies to every token a
 generator fills in Step 6.
@@ -237,7 +241,12 @@ base" rather than inventing content when it does not say.
 ### Step 7 — Make the generators available for later re-runs
 
 Copy every `<source>/generators/*.prompt.md` to `generators/` in this project (same relative path,
-per the manifest's Tier 1 entries). They are deliberately **not** placed in `.github/prompts/`:
+per the manifest's Tier 1 entries). **Collision check first:** if this project already has a
+`generators/` folder containing files that are NOT from this toolkit (i.e. not named
+`create-*.prompt.md` matching a toolkit generator — for example a Yeoman/plop generator setup),
+warn the user and ask before copying; never silently merge into or overwrite it. If the user
+declines, skip this step and record "generators not copied (folder collision)" in the report.
+They are deliberately **not** placed in `.github/prompts/`:
 the generators self-delete from that folder after running, and must not be exposed as live slash
 commands in the project. To re-run one later, tell Copilot to execute the instructions in
 `generators/<name>.prompt.md` and skip its self-delete step.
@@ -267,13 +276,18 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
   sync state (`version.json` + baseline file count).
 - Files skipped or saved as `.toolkit-new` in Step 4.
 - Each generator that ran and its outcome, plus any skipped (e.g. data dictionary).
-- Placeholders still pending (any remaining `{{...}}` token in the project's files — search for
-  them and list file + token). **Exclude from this scan**: `generators/` (all files),
-  `.github/prompts/sync-toolkit.prompt.md`, and `.ai/.toolkit-sync-state/baseline/` — they
-  contain tokens by design (instructional text or unfilled baseline templates), so listing them
-  is noise. Also ignore a token that appears only inside an explanatory note about itself (for
-  example the retained notes in `custom-fixes.md` and `wcag-fix-patterns.md`); a token counts as
-  pending only if a standalone, unfilled placeholder remains.
+- Placeholders still pending: search the project's files only for tokens matching this toolkit's
+  `{{UPPER_SNAKE_CASE}}` convention (regex `\{\{[A-Z][A-Z0-9_]*\}\}`) and list file + token. Do
+  NOT flag other `{{...}}` syntax (Handlebars, Jinja, Angular, etc.) — that is the project's own.
+  **Exclude from this scan**: the toolkit's own generator files (`generators/create-*.prompt.md`;
+  do not exclude other files in a project's `generators/` folder), `.github/prompts/sync-toolkit.prompt.md`,
+  `.ai/.toolkit-sync-state/baseline/`, and any `*.toolkit-new` files — they contain tokens by
+  design (instructional text, unfilled baseline templates, or unmerged toolkit copies), so listing
+  them is noise. Also ignore a token that appears only inside an explanatory note about itself
+  (a blockquote or HTML comment per Step 5, e.g. the retained notes in `custom-fixes.md` and
+  `wcag-fix-patterns.md`); a token counts as pending only if a real, unfilled placeholder remains.
+  Also list any file still containing the literal `<remote URL not yet configured>` (the
+  `create-scm-workflow` "no remote yet" value) and remind the user to update it once a remote exists.
 - Files copied from `core/` that were not classified in `manifest.json`.
 - **Completeness check.** When confirming that every Tier 1 manifest entry exists in the project,
   entries under `stacks/` are expected to be **absent** when the chosen stack is `none` or when

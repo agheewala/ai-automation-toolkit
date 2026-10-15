@@ -14,8 +14,8 @@
 | **Platform** | {{SCM_PLATFORM}} |
 | **Project Prefix** | `PROJ` (replace with this project's actual ticket-tracker project key, and name the tracker) |
 
-> `{{REPO_REMOTE_URL}}` must hold the **full remote URL** (e.g. `https://<host>/<workspace>/<repo>`),
-> not a short remote name such as `origin` (that is the separate "Remote" row above).
+> Note: the URL value must always be the **full remote URL** (e.g. `https://bitbucket.org/workspace/repo`),
+> never a short remote name such as `origin` (that is the separate "Remote" row above).
 
 ---
 

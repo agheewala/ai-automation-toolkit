@@ -148,11 +148,12 @@ the surrounding wording adapts.
 - If the target stack has no solution-file concept (for example Node.js, Python, Go, Maven/Gradle
   single-module projects), describe `{{SOLUTION_FILES}}` as the equivalent root project-manifest
   file(s) (for example `package.json`, `pom.xml`, `requirements.txt`, `pyproject.toml`, `go.mod`)
-  rather than forcing "solution file" terminology. `{{CODING_STANDARDS_BODY}}` and
-`{{THEME_FOLDERS}}` are owned by `create-coding-standards.prompt.md`; `{{BRANCH_PREFIX_TABLE}}` and
-`{{REPO_REMOTE_URL}}` are owned by `create-scm-workflow.prompt.md` — do not edit those tokens even
-if they appear in a file you are otherwise updating (e.g. `AGENTS.md`,
-`.github/agents/ticket-processor.agent.md`).
+  rather than forcing "solution file" terminology.
+
+**Ownership boundary.** `{{CODING_STANDARDS_BODY}}` and `{{THEME_FOLDERS}}` are owned by
+`create-coding-standards.prompt.md`; `{{BRANCH_PREFIX_TABLE}}` and `{{REPO_REMOTE_URL}}` are owned
+by `create-scm-workflow.prompt.md` — do not edit those tokens even if they appear in a file you are
+otherwise updating (e.g. `AGENTS.md`, `.github/agents/ticket-processor.agent.md`).
 
 ---
 

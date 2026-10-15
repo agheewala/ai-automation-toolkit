@@ -31,6 +31,3 @@ project regardless of language/stack.
   `generators/create-data-dictionary.prompt.md` command that turns exported CSVs into markdown.
 - `manifest.json` — the file tier classification + deprecated-file list that drives
   `/sync-toolkit`'s install/update behavior.
-
-Full design rationale: see the AB (Alberta) workspace's
-`docs/superpowers/specs/2026-10-15-ai-automation-toolkit-distribution-design.md`.
