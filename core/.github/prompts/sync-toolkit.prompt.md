@@ -465,6 +465,33 @@ this naturally: a filled-in line counts as a change on the `MINE` side, and only
    random 8-character suffix if the time is unavailable). It must not already exist; never reuse
    or empty a pre-existing folder. Merges are performed on copies in `<work>` so that `MINE` is
    only ever replaced by a finished result, never left half-written.
+3. **Line-ending normalization (mandatory before any comparison or merge).** `MINE` usually has
+   the project's native line endings (CRLF on Windows with `autocrlf`), while `BASE` and `THEIRS`
+   are raw template copies (typically LF, extracted via `git archive`/`tar`). Compared or merged
+   as-is, every line would differ purely by line ending: the "`BASE` == `THEIRS` -> unchanged"
+   shortcut would never fire, customized regions would conflict spuriously, and untouched regions
+   would pull LF endings into a CRLF file. So, for every Tier 2 entry where the file exists,
+   work only on LF-normalized scratch copies, and never compare or merge the originals:
+
+   - `<work>/base/<manifest-path>` — LF copy of `BASE`
+   - `<work>/theirs/<manifest-path>` — LF copy of `THEIRS`
+   - `<work>/mine/<project-path>` — LF copy of `MINE`, **plus** `MINE`'s **dominant line-ending
+     style**, recorded now: count `\r\n` sequences vs. bare `\n`; the larger count wins, and a
+     tie or a file with no line breaks counts as `LF`. If `MINE` has both kinds (mixed), note
+     "mixed line endings normalized" for the final summary.
+
+   Make each copy with one `run_in_terminal` call per file (create the target folder first with
+   `New-Item -ItemType Directory -Force`). The latin-1 encoding keeps every non-line-ending byte
+   unchanged, so no character is re-encoded or loses a BOM; no pipe or redirection is used:
+   ```powershell
+   $e=[Text.Encoding]::GetEncoding(28591); [IO.File]::WriteAllText("<dest>", [IO.File]::ReadAllText("<src>",$e).Replace("`r`n","`n"), $e)
+   ```
+   Detect `MINE`'s style with
+   `$t=[IO.File]::ReadAllText("<MINE>",$e); ([regex]::Matches($t,"\r\n")).Count; ([regex]::Matches($t,"(?<!\r)\n")).Count`.
+   Every "identical" / "differs" test in Steps 2 and 4 means: compare the **normalized** copies
+   (`(Get-FileHash -LiteralPath a).Hash -eq (Get-FileHash -LiteralPath b).Hash`), never the
+   originals. The normalized copies live only in `<work>`; the original `BASE`, `THEIRS` and
+   `<target>` files are never modified.
 
 ### Step 2 — Classify each file before merging
 
@@ -474,51 +501,106 @@ and whether its baseline entry is refreshed (see Step 6):
 | Case | Action | Outcome | Baseline entry |
 |---|---|---|---|
 | `MINE` does not exist (already flagged as a new/missing Tier 2 file in Update Mode Step 3, or deleted by the user) | Nothing to merge. | `not present in project` | add / refresh |
-| `BASE` does not exist (new Tier 2 file, or damaged baseline) | No common ancestor, so no 3-way merge is possible. If `MINE` is byte-identical to `THEIRS` after the install placeholder substitutions, outcome `unchanged`. Otherwise copy `THEIRS` next to the project file as `<project-path>.toolkit-new` (overwriting an earlier `.toolkit-new`) and do not touch `MINE`. | `NO MERGE BASE — compare manually` | add |
-| `MINE` still contains conflict markers from an earlier sync (a line starting `<<<<<<< ` **and** a line starting `>>>>>>> `) | Do not merge on top of markers. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (markers from a previous sync, not merged)` | **keep as is** (not refreshed) |
-| `BASE` and `THEIRS` are byte-identical | The toolkit did not change this file. Leave `MINE` untouched. | `unchanged` | refresh (no-op) |
+| `BASE` does not exist (new Tier 2 file, or damaged baseline) | No common ancestor, so no 3-way merge is possible. If the normalized `MINE` is identical to the normalized `THEIRS` after the install placeholder substitutions, outcome `unchanged`. Otherwise copy `THEIRS` next to the project file as `<project-path>.toolkit-new` (overwriting an earlier `.toolkit-new`) and do not touch `MINE`. **Upstream changes in `.toolkit-new` are NOT in `MINE`** — see the risk note below the table. | `NO MERGE BASE — NEEDS MANUAL RESOLUTION (compare manually)` | add |
+| `MINE` still contains an unresolved conflict-marker block from an earlier sync (the full triple, in order — see **Marker guard** below) | Do not merge on top of markers. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (markers from a previous sync, not merged)` | **keep as is** (not refreshed) |
+| Normalized `BASE` and normalized `THEIRS` are identical | The toolkit did not change this file (any raw difference was line endings only). Leave `MINE` untouched. | `unchanged` | refresh (no-op) |
 | otherwise | Merge (Step 3). | decided in Step 4 | per Step 4 |
+
+**Marker guard.** A file counts as "still containing conflict markers" only if its text contains,
+**in this order**: a line starting `<<<<<<< `, later a line that is exactly `=======`, later a line
+starting `>>>>>>> `. All three must be present and in that order; two of the three, or the same
+three out of order, do not trigger it. Test the normalized `MINE` copy, for example:
+```powershell
+[regex]::IsMatch([IO.File]::ReadAllText("<work>/mine/<project-path>"), '(?ms)^<<<<<<< .*?^=======$.*?^>>>>>>> ')
+```
+This narrows, but does not eliminate, false positives: a Tier 2 file that documents conflict
+markers in a code block (a tutorial/example containing the full triple) is still flagged. When the
+guard fires, report the line numbers of the three matched lines so the user can tell a stale
+marker block from example text, and include the recovery steps below in the final summary.
+
+**Recovery from a marker-guard flag** (the guard only inspects `MINE`; it never edits files):
+
+1. *Real, leftover markers:* resolve them in the file (keep the right side, delete the marker
+   lines), then re-run `/sync-toolkit`. The file merges normally against its unchanged baseline.
+2. *False positive (example text that happens to hold the full triple):* in the file, temporarily
+   break one of the three example lines (for example indent `=======` by one space), re-run
+   `/sync-toolkit` so the file is merged, then restore that line by hand.
+3. *Upstream changes are not wanted, or were already applied by hand:* manually copy
+   `<target>/core/<manifest-path>` over `.ai/.toolkit-sync-state/baseline/<manifest-path>`
+   (byte-for-byte, same as Step 6), which marks the file as in sync; use this only after the
+   file has been reconciled with the new template, because the baseline then treats those
+   upstream changes as already applied.
+
+**Risk of the `NO MERGE BASE` row (do not understate it).** The baseline entry is added for this
+file, so on the next sync `BASE` == the target template and the upstream changes saved in
+`<project-path>.toolkit-new` will be silently considered "already applied" — they are never
+offered again unless the user acts. This file is therefore reported as **needs manual
+resolution** (same tier as an unresolved conflict), not as a passive note: the user must
+manually reconcile `<project-path>.toolkit-new` into `<project-path>` and then delete the
+`.toolkit-new` file **now**, before the next sync.
 
 The "keep as is" rule matters: refreshing the baseline to `THEIRS` while `MINE` does not contain
 the `THEIRS` changes would make the next merge treat those upstream changes as the user's
 deletions and silently drop them. The baseline therefore only advances for a file when `MINE`
-actually incorporates (or already equals) the target version of it.
+actually incorporates (or already equals) the target version of it — with the two deliberate
+exceptions that are surfaced loudly instead: a fresh conflict (its markers are in `MINE`, so the
+upstream hunks are present for the user to resolve) and `NO MERGE BASE` (see risk above).
 
 ### Step 3 — Run the three-way merge
 
-For each file that reached "otherwise" in Step 2:
+For each file that reached "otherwise" in Step 2, using only the LF-normalized copies from Step 1
+item 3 (the **normalize → compare → merge → restore** sequence; Step 4 does the restore):
 
-1. Copy `MINE` byte-for-byte to `<work>/<project-path>` (create folders as needed).
-2. Run, with your own `run_in_terminal` call, a merge **in place on the scratch copy** (no output
+1. Copy the normalized `MINE` (`<work>/mine/<project-path>`) to `<work>/merge/<project-path>`
+   (create folders as needed). The merge runs on this `merge` copy so the normalized `MINE` stays
+   intact for Step 4's comparison; the original `MINE` is not touched here. Do not merge the raw files.
+2. Run, with your own `run_in_terminal` call, a merge **in place on the `merge` copy** (no output
    redirection and no pipe — PowerShell pipes can alter line endings and encodings):
    ```powershell
-   git merge-file -L "project (current)" -L "baseline (<installed version>)" -L "toolkit <target version>" "<work>/<project-path>" "<BASE path>" "<THEIRS path>"
+   git merge-file -L "project (current)" -L "baseline (<installed version>)" -L "toolkit <target version>" "<work>/merge/<project-path>" "<work>/base/<manifest-path>" "<work>/theirs/<manifest-path>"
    ```
    Argument order is *current, base, other*: `MINE`'s copy, then `BASE`, then `THEIRS`. `git merge-file`
    is a plain three-file text merge; it works on loose files and does not need this project, or
    any of the three files, to be inside a git repository. Quote every path (they may contain
-   spaces). Read the exit code immediately (`$LASTEXITCODE`).
+   spaces). Read the exit code immediately (`$LASTEXITCODE`). Because all three inputs are LF,
+   the result and any conflict markers are LF too.
 3. Interpret the exit code:
    - `0` — clean merge.
-   - `1`–`127` — that many conflicts; the scratch copy now contains standard conflict markers
+   - `1`–`127` — that many conflicts; the `merge` copy now contains standard conflict markers
      (`<<<<<<< project (current)` … `=======` … `>>>>>>> toolkit <target version>`).
    - anything else (e.g. `255` / negative — usually a binary or unreadable file) — error.
 
 ### Step 4 — Apply the result
 
-- **Exit `0` (clean):** if the scratch copy differs from `MINE`, copy it over `<project-path>`
-  (`Copy-Item -LiteralPath <scratch> -Destination <project-path> -Force`) and record
-  `clean-merged`; if it is identical to `MINE`, record `unchanged`. Baseline: refresh.
-- **Exit `1`–`127` (conflicts):** copy the scratch copy, **with its conflict markers**, over
+**Restore `MINE`'s line endings before writing anything back.** The merged `merge` copy is LF.
+If `MINE`'s recorded dominant style (Step 1 item 3) is `CRLF`, first convert the `merge` copy to
+CRLF in a separate scratch file (same latin-1 approach, no pipe):
+```powershell
+$e=[Text.Encoding]::GetEncoding(28591); [IO.File]::WriteAllText("<work>/out/<project-path>", [IO.File]::ReadAllText("<work>/merge/<project-path>",$e).Replace("`n","`r`n"), $e)
+```
+(create `<work>/out/...` folders first). If the style is `LF`, the merged `merge` copy is already
+final and is used directly. Never write an LF-only result over a CRLF file, and never leave the
+two styles mixed. "Differs from `MINE`" below is decided **before** restoring, by comparing the
+`merge` copy with the untouched normalized `MINE` copy (so a difference that is only line
+endings never counts as a change); "the file to write" below means the restored output.
+
+- **Exit `0` (clean):** if the merged LF result differs from the normalized `MINE`, copy the
+  restored output over `<project-path>`
+  (`Copy-Item -LiteralPath <restored output> -Destination <project-path> -Force`) and record
+  `clean-merged`; if it is identical, leave `MINE` untouched and record `unchanged`. Baseline: refresh.
+- **Exit `1`–`127` (conflicts):** copy the restored output, **with its conflict markers**, over
   `<project-path>` and record `NEEDS MANUAL RESOLUTION (<n> conflict(s))`. **Never resolve a
   conflict by silently picking one side, and never drop the markers.** Clean hunks in the same
   file are already merged by `git merge-file`; only genuine conflicts carry markers. Baseline:
-  refresh (the next sync merges against this version's template regardless of whether the user
-  has resolved today's markers yet; the marker guard in Step 2 protects an unresolved file from
-  being merged again on top of its markers).
+  refresh (the markers hold the upstream hunks for the user to resolve, so the next sync should
+  merge against this version's template; the marker guard in Step 2 protects an unresolved file
+  from being merged again on top of its markers, and keeps its baseline as is until resolved).
 - **Error:** leave `<project-path>` untouched and record `ERROR — not merged (<reason>)`.
   Baseline: **keep as is**. Continue with the remaining files and list it in the summary so the
   user can re-run `/sync-toolkit` to retry it.
+
+If `MINE` had mixed line endings, add "mixed line endings normalized to <style>" next to that
+file's outcome in the final summary.
 
 ### Step 5 — Post-merge placeholder check
 
@@ -577,11 +659,16 @@ unrecognized, Tier 1 overwritten, warnings) with:
 
 - Target version and previous version.
 - Every Tier 2 file with its outcome: `unchanged` / `clean-merged` / `NEEDS MANUAL RESOLUTION`
-  (with conflict count, or the reason) / `NO MERGE BASE — compare manually` (with the
+  (with conflict count, or the reason) / `NO MERGE BASE — NEEDS MANUAL RESOLUTION (compare manually)` (with the
   `.toolkit-new` path) / `not present in project` / `ERROR — not merged`.
-- A prominent **"Needs manual resolution"** list: files containing conflict markers (search for
-  `<<<<<<<` to resolve) and any file not merged, with the instruction to resolve the markers and
-  review the diff.
+- A prominent **"Needs manual resolution"** list. It must contain, at the same visibility: (a) files
+  containing conflict markers (search for `<<<<<<<` to resolve), (b) files skipped by the marker
+  guard (with the matched line numbers and the Recovery steps from Step 2), (c) any file not
+  merged (`ERROR`), and (d) **every `<project-path>.toolkit-new` file created this run**, each with
+  this warning: *the upstream changes in this file are NOT in your project file, and the baseline
+  already shows them as applied, so the next sync will not offer them again; reconcile
+  `.toolkit-new` into the project file and delete it now, or those changes are lost.* Give the
+  instruction to resolve/review each item and review the diff.
 - Baseline: entries added, removed (and why), refreshed, and kept as is.
 - Placeholders still pending (Step 5, plus Update Mode findings) and files not classified in
   `manifest.json`.
