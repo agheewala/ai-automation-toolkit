@@ -11,6 +11,10 @@ This document defines the mandatory rules for validating SQL scripts used for da
 > SQL Server projects may prefix objects with a schema such as `dbo.`; Oracle projects typically
 > use the owning schema or none). Do not assume a dialect-specific form applies to every project.
 
+> **Example data note:** All table names, column names, IDs, timestamps, status codes, and ticket
+> numbers in this document (`<ID>`, `<TICKET-ID>`, `<TIMESTAMP>`, `STATUS = 'X'`, etc.) are
+> synthetic placeholders. Replace them with real values verified against the data dictionary.
+
 ---
 
 ## 0. Authoritative Data Source (MANDATORY — Consult First)
@@ -52,21 +56,23 @@ document calls it the *audit-stamp column*) is the column that holds this value.
 
 `<STAMP_PREFIX>-<ticket number>_<yyyymmdd>` — the prefix convention (fixed prefix/suffix, optional
 project or jurisdiction code) is defined by the project and recorded in `.ai/knowledge-base.md`.
-If the project has not documented one, ask the user before generating scripts.
+
+**If `.ai/knowledge-base.md` does not document the audit-stamp column name or the stamp prefix,
+STOP and ask the user before generating or validating any script. Never invent either value.**
 
 #### SQL Server:
 ```sql
-AuditStampCol = '<STAMP_PREFIX>-####_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
 ```
 
 #### Oracle:
 ```sql
-AuditStampCol = '<STAMP_PREFIX>-####_' || TO_CHAR(SYSDATE, 'YYYYMMDD')
+AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' || TO_CHAR(SYSDATE, 'YYYYMMDD')
 ```
 
 **Where:**
 - `<STAMP_PREFIX>` = project-defined prefix (may embed a project/jurisdiction code)
-- `####` = Ticket/change number
+- `<TICKET-ID>` = Ticket/change number
 - `_` = Underscore separator
 - date portion = current date in `yyyymmdd`
 
@@ -90,12 +96,17 @@ tier (for example, whether a reversal script is required) in the project's docum
 
 ---
 
-## 2. Reversal Script (MANDATORY for Reversal-Required Projects ONLY)
+## 2. Reversal Script (Governed by the Project's Documented Policy)
 
-**A reversal script is only required for projects whose policy (see `.ai/knowledge-base.md`) marks it mandatory.** For all other projects it is recommended but not enforced.
+Whether a reversal script is required is decided by the project's reversal policy, which MUST be
+documented in `.ai/knowledge-base.md`. There are exactly two valid documented outcomes:
 
-- **Reversal-required projects**: Reversal script is **MANDATORY** — the script will FAIL validation without it
-- **Other projects**: Reversal script is **NOT required**
+- **Reversal-required project**: Reversal script is **MANDATORY** — the script will FAIL validation without it.
+- **Other project** (the knowledge-base explicitly documents that reversal is not required): Reversal script is **NOT required**.
+
+**If `.ai/knowledge-base.md` does not document the reversal-required policy — or does not document
+the audit-stamp column name or the stamp prefix — STOP and ask the user before proceeding. Do not
+assume either the requirement or the exemption. Never silently default to "reversal not required."**
 
 ### Audit-Stamp Value in Reversal Scripts:
 - **If original value was NOT blank/empty**: Use the same stamp format with the ticket number
@@ -105,40 +116,40 @@ tier (for example, whether a reversal script is required) in the project's docum
 ```sql
 UPDATE TableName
 SET StatusCode = 'ACTIVE',
-    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE RecordID = 98765
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE RecordID = <ID>
 --COUNT: 1
 
 --REVERSE QUERY
 --UPDATE TableName
 --SET StatusCode = 'PENDING',
---    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
---WHERE RecordID = 98765
+--    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+--WHERE RecordID = <ID>
 --COUNT: 1
 ```
 
 **Reversal-Required Example (Restoring Empty/Blank Value):**
 ```sql
 UPDATE TableName
-SET LAST_UPD_TS = CURRENT_TIMESTAMP,
-    AuditStampCol = '<STAMP_PREFIX>-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE RecordID = 98765
+SET LastUpdatedTs = CURRENT_TIMESTAMP,
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE RecordID = <ID>
 --COUNT: 1
 
 --REVERSE QUERY
 --UPDATE TableName
---SET LAST_UPD_TS = '2026-04-16 10:50:08.000',
+--SET LastUpdatedTs = '<TIMESTAMP>',
 --    AuditStampCol = ''
---WHERE RecordID = 98765
+--WHERE RecordID = <ID>
 --COUNT: 1
 ```
 
-**Other Project Example (no reversal required):**
+**Other Project Example (policy documents reversal not required):**
 ```sql
 UPDATE TableName
 SET StatusCode = 'ACTIVE',
-    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE RecordID = 98765
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE RecordID = <ID>
 --COUNT: 1
 ```
 
@@ -183,8 +194,8 @@ UPDATE Orders SET Status = 'Cancelled' -- FAIL: Missing WHERE clause
 ```sql
 UPDATE Orders
 SET Status = 'Cancelled',
-    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE OrderID = 45678
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE OrderID = <ID>
     AND Status = 'Pending'
 --COUNT: 1
 ```
@@ -198,14 +209,14 @@ WHERE OrderID = 45678
 ### Column Names (Recommended):
 ```sql
 INSERT INTO TableName (Column1, Column2, AuditStampCol)
-VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
 ### Without Column Names (Must match table order exactly):
 ```sql
 INSERT INTO TableName
-VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
@@ -220,7 +231,7 @@ VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE
 IF NOT EXISTS (SELECT 1 FROM TableName WHERE UniqueKey = 'Value1')
 BEGIN
     INSERT INTO TableName (Column1, Column2, AuditStampCol)
-    VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+    VALUES ('Value1', 'Value2', '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 END
 --COUNT: 1
 ```
@@ -233,7 +244,7 @@ END
 1. ✅ **Audit-stamp column** - Required for UPDATE/INSERT only (NOT for DELETE)
 2. ✅ **Record Count** - Any clear format with number
 3. ✅ **WHERE Clause** - For UPDATE/DELETE statements
-4. ✅ **Reversal Script** - ONLY for reversal-required projects
+4. ✅ **Reversal Script** - ONLY for reversal-required projects (policy must be documented — if undocumented, STOP and ask)
 5. ✅ **INSERT Safety** - Column names recommended, no duplicates
 
 ### OPTIONAL (WARNING only):
@@ -254,12 +265,17 @@ END
 - If present → Extract the project code (if the project's prefix embeds one)
 
 ### Step 3: Validate Based on Project Policy
+First confirm `.ai/knowledge-base.md` documents the audit-stamp column name, the stamp prefix, **and**
+the reversal-required policy. **If any of these is not documented, STOP and ask the user — do not
+continue validation and never silently default to "reversal not required."**
+
+Once documented:
 - **Reversal-required projects**: Require reversal script
-- **Other projects**: Do NOT require reversal script
+- **Other projects** (reversal explicitly documented as not required): Do NOT require reversal script
 
 ### Step 4: Validate Statement Type
 - **UPDATE**: Check WHERE clause, record count, audit-stamp column in SET clause
-- **DELETE**: Check WHERE clause, record count only
+- **DELETE**: Check WHERE clause, record count only (plus reversal script if reversal-required)
 - **INSERT**: Check audit-stamp column in VALUES/SET clause, record count, proper syntax
 
 ### Step 5: Validate Database Syntax
@@ -276,6 +292,13 @@ END
 Project: ❌ CANNOT BE DETERMINED
 Result: ❌ FAIL
 Issue: Audit-stamp column missing - add it before validation can proceed
+```
+
+### If Project Policy Is Undocumented (column name, stamp prefix, or reversal policy not in knowledge-base):
+```
+Project: ❌ CANNOT BE DETERMINED
+Result: ⏸️ STOPPED - USER INPUT REQUIRED
+Issue: .ai/knowledge-base.md does not document [audit-stamp column / stamp prefix / reversal policy] - please provide it before validation can proceed
 ```
 
 ### If All Rules Pass:
@@ -295,7 +318,7 @@ Issues:
 ### For DELETE Statements:
 ```
 Note: DELETE statements do not require the audit-stamp column
-Project: Determined from reversal script (if reversal-required project) or marked as "Other"
+Project: [Reversal-required / Other] — per the policy documented in .ai/knowledge-base.md (if undocumented, STOP and ask)
 Result: [PASS/FAIL based on WHERE clause, record count, and reversal script if required]
 ```
 
@@ -307,47 +330,45 @@ Result: [PASS/FAIL based on WHERE clause, record count, and reversal script if r
 ```sql
 UPDATE TableName
 SET Status = 'APPROVED',
-    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE RecordID = 12345
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE RecordID = <ID>
     AND Status = 'PENDING'
 --COUNT: 1
 
 --REVERSE QUERY
 --UPDATE TableName
 --SET Status = 'PENDING',
---    AuditStampCol = '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112)
---WHERE RecordID = 12345
+--    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+--WHERE RecordID = <ID>
 --COUNT: 1
 ```
 
 ### UPDATE - Reversal-Required Project (restoring blank audit-stamp value):
 ```sql
-UPDATE Inventory
-SET LAST_UPD_TS = CURRENT_TIMESTAMP,
-    AuditStampCol = '<STAMP_PREFIX>-2448_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE ItemControlNbr = '26979'
-    AND ItemType = 'ABC'
-    AND ItemYear = 2026
-    AND AccountNbr = 36980936
+UPDATE ItemTable
+SET LastUpdatedTs = CURRENT_TIMESTAMP,
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE ItemKey = '<ID>'
+    AND ItemType = '<TYPE>'
+    AND AccountKey = <ID>
 --COUNT: 1
 
 --REVERSE QUERY
---UPDATE Inventory
---SET LAST_UPD_TS = '2026-04-16 10:50:08.000',
+--UPDATE ItemTable
+--SET LastUpdatedTs = '<TIMESTAMP>',
 --    AuditStampCol = ''
---WHERE ItemControlNbr = '26979'
---    AND ItemType = 'ABC'
---    AND ItemYear = 2026
---    AND AccountNbr = 36980936
+--WHERE ItemKey = '<ID>'
+--    AND ItemType = '<TYPE>'
+--    AND AccountKey = <ID>
 --COUNT: 1
 ```
 
-### UPDATE - Other Project (no reversal):
+### UPDATE - Other Project (reversal documented as not required):
 ```sql
 UPDATE TableName
 SET Status = 'APPROVED',
-    AuditStampCol = '<STAMP_PREFIX>-5678_' + CONVERT(VARCHAR(8), GETDATE(), 112)
-WHERE RecordID = 54321
+    AuditStampCol = '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112)
+WHERE RecordID = <ID>
     AND Status = 'PENDING'
 --1 row affected
 ```
@@ -355,7 +376,7 @@ WHERE RecordID = 54321
 ### INSERT - Reversal-Required Project (with reversal):
 ```sql
 INSERT INTO TableName (Column1, Column2, Status, AuditStampCol)
-VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 
 --REVERSE QUERY
@@ -364,38 +385,36 @@ VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8
 --COUNT: 1
 ```
 
-### INSERT - Other Project (no reversal):
+### INSERT - Other Project (reversal documented as not required):
 ```sql
 INSERT INTO TableName (Column1, Column2, Status, AuditStampCol)
-VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+VALUES ('Value1', 'Value2', 'ACTIVE', '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
 ### DELETE - Reversal-Required Project (with reversal):
 ```sql
 DELETE FROM TableName
-WHERE RecordID = 12345
+WHERE RecordID = <ID>
     AND Status = 'PENDING'
 --COUNT: 1
 
 --REVERSE QUERY
 --INSERT INTO TableName (RecordID, Status, AuditStampCol)
---VALUES (12345, 'PENDING', '<STAMP_PREFIX>-1234_' + CONVERT(VARCHAR(8), GETDATE(), 112))
+--VALUES (<ID>, 'PENDING', '<STAMP_PREFIX>-<TICKET-ID>_' + CONVERT(VARCHAR(8), GETDATE(), 112))
 --COUNT: 1
 ```
 
-### DELETE - Other Project (no reversal):
+### DELETE - Other Project (reversal documented as not required):
 ```sql
-DELETE FROM Payments
-WHERE PaymentUid = 66004
+DELETE FROM RecordTable
+WHERE RecordUid = <ID>
 --COUNT: 1
 ```
 
-### Oracle INSERT - Other Project:
+### Oracle INSERT - Other Project (reversal documented as not required):
 ```sql
-INSERT INTO Payments (PaymentUid, PayStatInd, AuditStampCol)
-VALUES (66003, 'V', '<STAMP_PREFIX>-923_' || TO_CHAR(SYSDATE, 'YYYYMMDD'))
+INSERT INTO RecordTable (RecordUid, StatusInd, AuditStampCol)
+VALUES (<ID>, 'X', '<STAMP_PREFIX>-<TICKET-ID>_' || TO_CHAR(SYSDATE, 'YYYYMMDD'))
 --COUNT: 1
 ```
-
----
