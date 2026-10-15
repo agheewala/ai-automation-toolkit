@@ -128,7 +128,12 @@ explicitly in that section rather than omitting the header or fabricating conten
 ## Required Output Structure
 
 Produce `.ai/knowledge-base.md` with exactly these section headers, in this order (confirmed
-against a real production example of this document — do not add, remove, or rename sections):
+against a real production example of this document — do not add, remove, or renumber sections).
+The header WORDING below is a domain-neutral template, not literal text to copy verbatim — adapt
+each header's wording to this project's own domain vocabulary (see notes below each numbered
+item). The stability/compatibility contract is the section NUMBERING and ORDER, not the literal
+header strings — nothing in this toolkit currently references these sections by number, but keep
+numbering stable anyway as a convention for any future cross-references:
 
 ```
 # <PROJECT_NAME> Knowledge Base — Canonical Source of Truth
@@ -138,7 +143,7 @@ against a real production example of this document — do not add, remove, or re
 ## 1. System Overview
 ## 2. Architecture
 ## 3. Domain Glossary
-## 4. Supplement / Transaction Types
+## 4. Core Business Entity / Transaction Types
 ## 5. Status / State Codes
 ## 6. Module Ownership Map
 ## 7. Key DB Tables
@@ -148,7 +153,7 @@ against a real production example of this document — do not add, remove, or re
 ## 11. Transaction Flows
 ## 12. Batch Jobs
 ## 13. Roles and Access
-## 14. Supplement Backout Matrix System
+## 14. Complex Business Rule Matrix / State Engine
 ## 15. Technology Stack
 ## 16. What Copilot Must Never Do
 ## 17. Data Dictionary & Stored Procedure Library (Authoritative SQL Source)
@@ -157,22 +162,22 @@ against a real production example of this document — do not add, remove, or re
 Notes on applying this structure to a different project's domain:
 
 - The header text above is the structural template; replace domain-specific wording with this
-  project's own vocabulary where it improves clarity (e.g. if this project's core workflow unit
-  is called a "request" or "order" rather than a "supplement," you may reflect that in prose
-  within the section — but keep the section numbering and the header list as given, so that other
-  package files which reference these sections by number stay valid).
-- **Section 4** ("Supplement / Transaction Types") should list this project's actual set of
-  transaction/operation types if it has one; if the domain has no equivalent concept, state that
+  project's own vocabulary where it improves clarity, in both the header text and the prose within
+  the section (e.g. if this project's core workflow unit is called a "request," "order," or
+  "claim," use that term as the header wording and throughout the section) — but keep the section
+  numbering and the header order as given, as a stable convention for any future cross-references.
+- **Section 4** ("Core Business Entity / Transaction Types") should list this project's actual set
+  of transaction/operation types if it has one; if the domain has no equivalent concept, state that
   plainly in the section rather than inventing one.
   **Section 5** ("Status / State Codes") should list the actual status/state enumerations found in
   the codebase for its core entities.
 - **Section 7** ("Key DB Tables") should reflect whatever persistent storage technology was
   detected (tables, collections, indexes — whatever term fits the detected database technology).
-- **Section 14** ("Supplement Backout Matrix System") is a placeholder for *whatever complex,
-  non-obvious rules engine or matrix this project's own domain actually has* (e.g. a reversal/undo
-  matrix, a permission matrix, a pricing matrix). If no such mechanism exists in this codebase,
-  write this section stating that no equivalent complex rules matrix was found, rather than
-  omitting the header.
+- **Section 14** ("Complex Business Rule Matrix / State Engine") is a placeholder for *whatever
+  complex, non-obvious rules engine or matrix this project's own domain actually has* (e.g. a
+  reversal/undo matrix, a permission matrix, a pricing matrix, a state-transition engine). If no
+  such mechanism exists in this codebase, write this section stating that no equivalent complex
+  rules matrix was found, rather than omitting the header.
 - **Section 15** ("Technology Stack") must reflect only what was actually auto-detected in the
   **Auto-Detection Instructions** step — list the real framework, database, UI technology, build
   commands, and test commands for this project.
