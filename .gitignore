@@ -1,0 +1,6 @@
+# Local sync-state artifacts are per-jurisdiction, never part of the toolkit's own history
+.ai/.toolkit-sync-state/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
