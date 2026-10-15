@@ -18,11 +18,11 @@ applyTo: "**"
 Before implementing any change, confirm:
 
 1. **Which module owns this change?** (see `.ai/knowledge-base.md` module ownership map)
-2. **Which layers are affected?** (Controller / Service / DAO / ViewModel / View / CSS)
-3. **Does this touch a supplement lifecycle step?** (If yes — what is the current status and what is the expected transition?)
+2. **Which layers are affected?** (controller/handler, service, data access, data/view models, views/templates, styles)
+3. **Does this touch a business lifecycle step?** (If yes — what is the current status and what is the expected transition?)
 4. **Does this involve fees, payments, or credentials?** (If yes — flag as high-risk)
-5. **Is this a read or a write operation?** (Writes require `[ValidateAntiForgeryToken]` + logging)
-6. **Does this affect UI?** (If yes — identify which theme/CSS files need updating)
+5. **Is this a read or a write operation?** (Writes require the project's request-integrity/CSRF protection, input validation, and logging — see `.ai/governance/coding-standards.md`)
+6. **Does this affect UI?** (If yes — identify which stylesheet/theme files need updating)
 
 ---
 
@@ -31,75 +31,76 @@ Before implementing any change, confirm:
 Always implement in this layer order — never skip layers:
 
 ```
-1. DTO (shared utility project's Dto/) — if a new data structure is needed
-2. DAO Interface (XxxDataLayer/Dao/XxxDao.cs)
-3. DAO SQL Implementation (XxxDataLayer/Dao/Sql/XxxDaoSql.cs)
-4. DAO Factory entry (XxxDataLayer/Dao/XxxDaoFactory.cs)
-5. Service Interface (XxxServiceLayer/Service/XxxService.cs)
-6. Service Implementation (XxxServiceLayer/Service/Impl/XxxServiceImpl.cs)
-7. Service Locator entry (XxxServiceLayer/Service/XxxServiceLocator.cs)
-8. ViewModel (shared utility project's Models/Xxx/XxxVM.cs) — if UI change
-9. Controller (XxxMvcApp/Controllers/XxxController.cs)
-10. View (XxxMvcApp/Views/Xxx/XxxPage.cshtml) — if UI change
-11. CSS (theme files in Content/themes/) — if visual change
+1. Shared data structure(s) (DTO/model) — if a new data structure is needed
+2. Data-access contract (interface/abstraction)
+3. Data-access implementation (the only place database queries/commands live)
+4. Data-access registration (factory/DI/registry entry, however the project wires it)
+5. Service contract (interface/abstraction)
+6. Service implementation (business logic)
+7. Service registration (locator/DI/registry entry, however the project wires it)
+8. View/data model — if UI change
+9. Controller / handler (request entry point)
+10. View / template — if UI change
+11. Stylesheets / theme files — if visual change
 ```
+
+The exact file locations, class names, and naming conventions for each step are project-specific —
+read `.github/skills/patterns/SKILL.md` (filled with this project's real, verified patterns) before
+writing code.
 
 ---
 
 ## Layer Rules
 
-### DAO Layer
-- Interface in `XxxDataLayer/Dao/XxxDao.cs` — **no `I` prefix on interface**
-- Implementation in `XxxDataLayer/Dao/Sql/XxxDaoSql.cs` — must be `internal class`
-- Extends `BasicDaoSql` — use `getDatabaseConnection()`, `CreateDBCommand()`, `CreateDBParameter()`, `PopulateDBParameter()`
-- **No inline SQL in service or controller** — SQL belongs in DAO only
-- SQL parameters: suffix input params with `_IN` (e.g., `@ACCOUNT_NBR_IN`, `@FL_NBR_IN`)
-- Schema prefix: `dbo.` for each module
-- Always close connection in `finally` block
-- Use the read-only database connection helper only for read-only reporting/reference queries against a secondary data source, if one exists
+> Class names, base classes, file locations, and framework-specific conventions for every layer
+> below are defined in `.github/skills/patterns/SKILL.md` and `.ai/governance/coding-standards.md`.
+> The rules here are the stack-neutral intent those files implement.
+
+### Data-Access Layer
+- Define a contract (interface/abstraction) separately from its implementation, following the project's naming convention
+- Implementation uses the project's standard database-access base class/helpers — never ad-hoc raw connections
+- **No inline SQL in service or controller/handler code** — database queries/commands belong in the data-access layer only
+- Use parameterized queries/commands only — never concatenate user input into query text
+- Follow the project's parameter and schema naming conventions
+- Always release/close connections and other resources (finally/using/dispose, as the language requires)
+- Use a read-only connection/helper only for read-only reporting/reference queries against a secondary data source, if the project has one
 
 ### Service Layer
-- Interface in `XxxServiceLayer/Service/XxxService.cs`
-- Implementation in `XxxServiceLayer/Service/Impl/XxxServiceImpl.cs` — must be `internal class`
-- DAOs accessed **only** via factory: `XxxDaoFactory.getXxxDao()` (one factory per module)
-- Logging: `Applogger.debug("entering XxxServiceImpl.method()")` on entry; `Applogger.fatal(...)` in catch
-- Throw `BusinessException` (not generic `Exception`) on service errors
-- Pass `SessionContext` when the operation requires user context (inserts, updates, audit trails)
+- Expose a contract (interface/abstraction); keep the implementation non-public where the language supports it
+- Obtain data-access objects **only** through the project's factory/DI/locator mechanism
+- Log method entry and errors through the project's logging abstraction
+- Throw the project's business/domain exception type (not a generic exception) on service errors
+- Pass user/session context when the operation requires it (inserts, updates, audit trails)
 
-### Controller Layer
-- Extends `BaseController`
-- Single `ProcessRequest` entry point — routes via `switch (displayPage)`
-- Each display page handled by a private `[NonAction]` method
-- Inside `[NonAction]` handlers: switch on `IsPostBack` first, then on `model.form_button_Name`
-- Services accessed via `XxxServiceLocator.getXxxService()` (one locator per module)
-- Declare `public static string ControllerName { get { return Constants.ControllersName.XXX; } }`
-- **Never** put business logic directly in the controller — delegate to service
+### Controller / Handler Layer
+- Extend/implement the project's standard base controller/handler, if one exists
+- Keep a single, consistent request entry-point convention per page/route, as the project defines it
+- Distinguish initial load from submit/postback and route by the triggering action, per project convention
+- Obtain services only through the project's service locator/DI mechanism
+- **Never** put business logic directly in the controller/handler — delegate to the service layer
 
-### View Layer (Razor CSHTML)
-- **No raw HTML inputs** — use `Html.c*` helpers exclusively
-- All labels: `@Html.cLabelFor(m => m.Xxx, AppResources.lblXxx)` — no hardcoded strings
-- Form declaration: `@using (Html.BeginForm(ControllerConstants.ProcessRequest, XxxController.ControllerName, new { displayPage = ControllerConstants.DisplayPage.Xxx }, FormMethod.Post, ...))`
-- Always include: `Html.RenderPartial("~/Views/Shared/PartialView/_ComHiddenFieldProps.cshtml");`
-- Always include: `@Html.cValidationSummary()`
-- Layout: the module's shared layout view (e.g. `~/Views/Shared/_XxxPageLayout.cshtml`)
-- Session: `SessionContext context = UtilSettings.SessionContext;` at top of view
+### View / Template Layer
+- **No raw markup for form inputs** — use the project's own component/helper conventions exclusively
+- No hardcoded user-facing strings — use the project's resource/localization mechanism
+- Reuse the project's shared layout, hidden-field/anti-forgery partials, and validation-summary components as required by its conventions
+- Access user/session context only through the project's sanctioned mechanism
 
-### CSS / Theme Layer
-- **Module-specific pages**: edit the project's shared stylesheet in every theme folder under `Content/themes/` (see `.ai/governance/coding-standards.md` for the exact theme folder list for this project)
-- Edit SCSS source where a theme provides one; hand-edit CSS directly for themes that ship compiled CSS only
+### Stylesheet / Theme Layer
+- Edit the project's shared stylesheet in every theme folder it maintains (see `.ai/governance/coding-standards.md` for the exact list for this project)
+- Edit source stylesheets (SCSS/LESS/etc.) where a theme provides one; hand-edit compiled CSS only for themes that ship compiled output only
 - **Never use inline styles** — only CSS classes
 
 ---
 
 ## Critical Rules (Never Violate)
 
-- ❌ No inline SQL anywhere outside DAO layer
-- ❌ No raw `<input>`, `<select>`, `<textarea>` in Razor views — use `Html.c*` helpers
-- ❌ No hardcoded UI strings — use `AppResources.lblXxx`
-- ❌ No `new XxxDaoSql()` directly — use the DAO factory
-- ❌ No `new XxxServiceImpl()` directly in controllers — use the service locator
-- ❌ No cross-module DAO calls (one module's DAO from another, etc.) without explicit justification
-- ❌ No business logic in controllers
-- ❌ No DB logic in service layer
-- ✅ Every new class that logs must declare: `private static AppLogger logger = new AppLogger(typeof(XxxClass));`
+- ❌ No inline SQL anywhere outside the data-access layer
+- ❌ No raw form-input markup in views/templates — use the project's component/helper conventions
+- ❌ No hardcoded UI strings — use the project's resource/localization mechanism
+- ❌ No directly instantiating a data-access implementation — use the project's factory/DI mechanism
+- ❌ No directly instantiating a service implementation in controllers/handlers — use the project's service locator/DI mechanism
+- ❌ No cross-module data-access calls (one module's data layer from another, etc.) without explicit justification
+- ❌ No business logic in controllers/handlers
+- ❌ No DB logic in the service layer
+- ✅ Every new class that logs must declare/obtain a logger the way the project's logging convention requires (see `.github/skills/patterns/SKILL.md`)
 - ✅ All fee/payment/credential changes require senior review before push

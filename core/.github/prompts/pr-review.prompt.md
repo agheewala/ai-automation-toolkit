@@ -62,9 +62,8 @@ Cross-check against the repo governance files in this **priority order**:
 - **FLAG**: Payment / financial-critical logic changed → recommend feature flag
 
 ### 3. `.ai/governance/coding-standards.md`
-- C# naming: PascalCase for all methods, interfaces, and classes
-- No business logic in controllers — delegate to service layer
-- Interface-first pattern (ICommand / IQuery) must be followed
+- Follow the naming conventions, layering rules, and design patterns defined in `.ai/governance/coding-standards.md` (verify each changed file against them rather than assuming a language-specific convention)
+- No business logic in controllers/handlers — delegate to the service layer
 
 ### 4. `.ai/governance/scm-workflow.md`
 - Branch naming: prefix per `.ai/governance/scm-workflow.md` + `<TicketID>_<Short_Title>`
@@ -72,8 +71,8 @@ Cross-check against the repo governance files in this **priority order**:
 - Build evidence must exist before PR is raised
 
 ### 5. `.ai/behavior/setting.md` (Risk Posture)
-- Build gate: `{{BUILD_COMMAND_MODULE}}` or the full `{{BUILD_COMMAND_FULL}}` — scope depends on ticket Type per `AGENTS.md`. Solution file names: {{SOLUTION_FILES}}. Confirm the exact build tool (MSBuild vs `dotnet build`) against `.ai/behavior/setting.md` for this project's stack.
-- No automated test projects exist in this workspace (confirmed in `.ai/behavior/setting.md` Section 5) — do not expect a test gate; flag if the PR claims automated test coverage that doesn't exist, and verify manual regression evidence instead
+- Build gate: `{{BUILD_COMMAND_MODULE}}` or the full `{{BUILD_COMMAND_FULL}}` — scope depends on ticket Type per `AGENTS.md`. Solution file names: {{SOLUTION_FILES}}.
+- Check this project's own test setup (see `.ai/behavior/setting.md` and the repo itself) — if automated tests exist, expect them to run and pass; if none exist, do not expect a test gate. Flag if the PR claims automated test coverage that isn't there, and verify manual regression evidence instead
 - Flag if no build evidence (build output/log) is visible in the PR description or pipeline
 
 ### 6. `.github/skills/patterns/SKILL.md` (Code Patterns)

@@ -246,12 +246,15 @@ ADA/accessibility shortcut commands: [`.ai/behavior/ada-workflow.md`](.ai/behavi
 ## Architecture
 
 ```
-Browser
-  └─▶ MVC Controller  (one ProcessRequest entry point per page)
-        └─▶ Service Layer       (business logic — stateless)
-              └─▶ Data Layer    (stored proc calls only — no inline SQL)
-                    └─▶ Oracle DB / UIC / External Services
+User / Client
+  └─▶ Controller / Handler  (request entry point)
+        └─▶ Service Layer       (business logic)
+              └─▶ Data Layer    (all database access — no inline SQL outside this layer)
+                    └─▶ Database / External Services
 ```
+
+The diagram above is the generic layering pattern; the project's exact layer and class names are
+described in `.github/skills/patterns/SKILL.md` and `.ai/governance/coding-standards.md`.
 
 Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md) (Sections 2 and 6).
 
@@ -262,7 +265,7 @@ Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md)
 | Rule | Where Defined |
 |---|---|
 | STOP/FLAG/PROCEED decision logic | [`behavior/decision-rules.md`](.ai/behavior/decision-rules.md) |
-| Coding standards (C#, Razor, CSS) | [`governance/coding-standards.md`](.ai/governance/coding-standards.md) |
+| Coding standards (language, markup, styling) | [`governance/coding-standards.md`](.ai/governance/coding-standards.md) |
 | Accessibility (WCAG 2.1 AA mandatory) | [`governance/wcag-fix-patterns.md`](.ai/governance/wcag-fix-patterns.md) |
 | Branching & push rules | [`governance/scm-workflow.md`](.ai/governance/scm-workflow.md) |
 | SQL production fix rules | [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) |
@@ -275,7 +278,7 @@ Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md)
 
 ## Critical Gotchas
 
-- **No inline SQL** — every DB call goes through a stored procedure.
+- **No inline SQL** — every DB call goes through the project's data-access layer (see `.ai/governance/coding-standards.md` for the exact mechanism).
 - **DB schema & stored procedures are authoritative via the data dictionary** — before preparing
   any SQL script, doing data analysis, or changing code that touches the DB, consult
   [`.ai/data-dictionary/`](.ai/data-dictionary/README.md) (`db-schema-dictionary.md` for every
@@ -283,14 +286,14 @@ Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md)
   script, `stored-procedure-dataflows.md` for a visual diagram of what each procedure touches).
   Never invent a table, column, or stored procedure name — verify against these files
   first, same priority tier as `.ai/knowledge-base.md`.
-- **No raw HTML inputs** — use `Html.c*` helpers exclusively in Razor forms.
-- **No hardcoded strings** — all labels/text come from `AppResources.lblXxx`.
-- **CSS theme files** — Module-specific pages touch the following theme folders: {{THEME_FOLDERS}} (confirmed via `BundleConfig.cs` bundle registrations); shared pages touch at minimum the base theme folder and the accessibility theme folder from that set. See [coding-standards.md](.ai/governance/coding-standards.md#3-css--theme-rules) for paths.
+- **No raw markup in templates/views** — use the project's own component/helper conventions (see `.ai/governance/coding-standards.md`).
+- **No hardcoded strings** — all user-facing labels/text come from the project's resource/localization mechanism (see `.ai/governance/coding-standards.md`).
+- **CSS theme files** — Module-specific pages touch the following theme folders: {{THEME_FOLDERS}}; shared pages touch at minimum the base theme folder and the accessibility theme folder from that set. See [coding-standards.md](.ai/governance/coding-standards.md#3-css--theme-rules) for paths.
 - **Never push without explicit "PUSH BRANCH" or "PUSH" approval** from the user.
-- **Shared library changes** (`Utility.Standard` / `Utility.Core`) require team lead sign-off before implementation.
+- **Shared library changes** (`{{SHARED_LIBS}}`) require team lead sign-off before implementation.
 - **Branch must be `Development`** before starting any Bug / Enhancement / Change Request work.
 - **NEVER post notes or comments to a Jira ticket** under any circumstances, for any ticket type, at any workflow step. This is an absolute prohibition — no automatic, implicit, or proactive Jira comments. The only exception is when the user explicitly says "add note in ticket" and provides the note text.
-- **`BaseViewModel`** — all ViewModels extend it. **`BaseController`** — all authenticated controllers extend it.
+- **Base classes** — follow the project's base-class conventions for view models/controllers/handlers (see `.github/skills/patterns/SKILL.md`).
 
 ---
 

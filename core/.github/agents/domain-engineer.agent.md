@@ -17,10 +17,7 @@ tools:
   - todo
   - get_errors
 applyTo:
-  - "**/*.cs"
-  - "**/*.cshtml"
-  - "**/*.css"
-  - "**/*.js"
+  - "**/*"
 ---
 
 # {{PROJECT_NAME}} Domain Engineer
@@ -95,7 +92,7 @@ checklist used to verify generated or reviewed code against those conventions.
 - **Never hardcode strings, statuses, table/column names, or jurisdiction/region/locale
   identifiers** — use the project's constants, resource files, and the data dictionary.
 - **Never introduce a different data-access technology than the one the project already uses**
-  (e.g. adding an ORM to a project built on raw ADO.NET, or vice versa) without explicit
+  (e.g. adding an ORM to a project built on raw low-level DB API calls, or vice versa) without explicit
   justification.
 - **Never skip the project's logging abstraction** — classes performing logic or DB calls
   should log through it, not ad-hoc console/file writes.

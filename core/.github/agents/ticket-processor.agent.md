@@ -18,11 +18,7 @@ tools:
   - todo
   - get_errors
 applyTo:
-  - "**/*.cs"
-  - "**/*.cshtml"
-  - "**/*.css"
-  - "**/*.js"
-  - "**/*.sql"
+  - "**/*"
 ---
 
 # Ticket Processor — Fully Automated Workflow
@@ -303,7 +299,7 @@ Use the domain engineer's output to:
 
 ### C. Accessibility Validation (If UI Changes)
 
-For any `.cshtml` or `.css` changes:
+For any view/template or stylesheet changes:
 1. Check against `.ai/governance/wcag-fix-patterns.md`
 2. Ensure proper labels, ARIA attributes, keyboard navigation
 3. Validate color contrast (WCAG AA: 4.5:1 for normal text, 3:1 for large text)
