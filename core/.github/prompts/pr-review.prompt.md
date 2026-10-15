@@ -20,7 +20,7 @@ covering both code quality and governance compliance in a single numbered list.
 
 ## {{SCM_PLATFORM}} Details
 
-This repo's SCM remote is `{{REPO_REMOTE_NAME}}` (see `.ai/governance/scm-workflow.md` Section 1
+This repo's SCM remote is `{{REPO_REMOTE_URL}}` (see `.ai/governance/scm-workflow.md` Section 1
 for the exact workspace/repo-slug breakdown). Platform: {{SCM_PLATFORM}}.
 
 Extract `pull_request_id` from the URL the user provides (e.g. `.../pull-requests/350/diff` → ID is `350`).

@@ -130,8 +130,8 @@ explicitly in that section rather than omitting the header or fabricating conten
 
 ## Required Output Structure
 
-Produce `.ai/knowledge-base.md` with exactly these section headers, in this order (confirmed
-against a real production example of this document — do not add, remove, or renumber sections).
+Produce `.ai/knowledge-base.md` with exactly these section headers, in this order (do not add,
+remove, or renumber sections).
 The header WORDING below is a domain-neutral template, not literal text to copy verbatim — adapt
 each header's wording to this project's own domain vocabulary (see notes below each numbered
 item). The stability/compatibility contract is the section NUMBERING and ORDER, not the literal

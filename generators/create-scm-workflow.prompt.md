@@ -19,8 +19,8 @@ this automation package that references them.
 
 > **Self-deleting prompt.** After this file successfully writes
 > `.ai/governance/scm-workflow.md` and propagates the branch-prefix/remote facts to every file
-> listed below, delete this file from the target project's `.github/prompts/` folder (see the
-> final step below). Do not keep it around — a stale generator invites someone to re-run it later
+> listed below, delete this file from the target project's `.github/prompts/` folder (see
+> **Step 6** below). Do not keep it around — a stale generator invites someone to re-run it later
 > and overwrite workflow conventions that have since been hand-edited or kept current through
 > normal ticket work.
 
@@ -33,14 +33,14 @@ this automation package that references them.
 2. Detect the git remote and ticket-type/branch-prefix convention (see **Detection Instructions**).
    Ask the user for anything that cannot be reliably detected — do not fabricate a remote URL, a
    Jira/ticket-tracker project prefix, or a branch-prefix scheme.
-3. Write `.ai/governance/scm-workflow.md`, filling `{{BRANCH_PREFIX_TABLE}}`, `{{REPO_REMOTE_NAME}}`,
+3. Write `.ai/governance/scm-workflow.md`, filling `{{BRANCH_PREFIX_TABLE}}`, `{{REPO_REMOTE_URL}}`,
    `{{BASE_BRANCHES}}`, and `{{SCM_PLATFORM}}` per the guidance already present in that file's own
    scaffold comments
    (read the existing `.ai/governance/scm-workflow.md` scaffold shipped by this package before
    writing it — the "Project Prefix" row and the `{{BRANCH_PREFIX_TABLE}}` placeholder's own
    comment explain exactly what content each must contain: placeholder values, example branch
    names, and the full ticket-type reference table).
-4. Propagate `{{BRANCH_PREFIX_TABLE}}`, `{{REPO_REMOTE_NAME}}`, `{{BASE_BRANCHES}}`, and
+4. Propagate `{{BRANCH_PREFIX_TABLE}}`, `{{REPO_REMOTE_URL}}`, `{{BASE_BRANCHES}}`, and
    `{{SCM_PLATFORM}}` into every other file that
    references them (see **Files You Must Touch** below — this is the authoritative, verified
    list; do not rely on assumption or touch only `scm-workflow.md`).
@@ -53,6 +53,12 @@ this automation package that references them.
 ## Detection Instructions
 
 Do not assume any single source-control platform or branch-prefix scheme. Detect or ask for:
+
+> **No git repository yet?** The detection steps below use `git remote -v`, `git branch -a`, and
+> `git log`. If `CODE_ROOT` is not inside a git repository (no `.git` folder), do not attempt those
+> commands. Ask the user directly for the remote URL (or "none yet"), the platform, the ticket-type
+> branch prefixes, and the base-branch names. This is expected, not an error. These answers are
+> generator-specific questions, asked here rather than up front during `/sync-toolkit` Step 2.
 
 - **Git remote** — run (or ask the user to confirm the output of) `git remote -v` / inspect
   `.git/config` in `CODE_ROOT` for the `origin` remote URL. Identify the hosting platform from the
@@ -90,7 +96,8 @@ drive every branch/PR the automated workflow creates) and must never be guessed.
 
 ## Content to Populate in `.ai/governance/scm-workflow.md`
 
-- **`{{REPO_REMOTE_NAME}}`** — the real remote URL/path (e.g.
+- **`{{REPO_REMOTE_URL}}`** — the real, **full** remote URL (never a short remote name such as
+  `origin`), e.g.
   `https://bitbucket.org/<workspace>/<repo-slug>` or `https://github.com/<org>/<repo>`), used
   verbatim in the "Repository" table and anywhere else in this file that references it.
 - **`{{BRANCH_PREFIX_TABLE}}`** — replace the generic `PROJ` placeholder and the single
@@ -108,6 +115,14 @@ drive every branch/PR the automated workflow creates) and must never be guessed.
   in prose wherever the workflow refers to the platform (PR creation, MCP server, review). It does
   not name the ticket tracker.
 
+**Inline vs. block usage.** Some of these tokens appear as their own block in one file and inside a
+sentence in another (for example, `{{BRANCH_PREFIX_TABLE}}` is a full table in
+`.ai/governance/scm-workflow.md` but sits inline in `AGENTS.md` and
+`.github/copilot-instructions.md`). When a token appears inline in a sentence rather than as its own
+block, produce a concise inline-appropriate phrasing of the same fact (for example, a one-line list of this project's real prefixes followed by
+the ticket ID), not the full block verbatim. The facts must stay identical
+across files; only the length and shape adapt to the position.
+
 ---
 
 ## Files You Must Touch
@@ -118,7 +133,7 @@ references these tokens:
 | Token | Files to update |
 |---|---|
 | `{{BRANCH_PREFIX_TABLE}}` | `AGENTS.md` (branch-naming references in the automated-workflow summary and the "Source Control Workflow" section), `.ai/governance/scm-workflow.md` (full branch-strategy section), `.github/copilot-instructions.md` (ticket-type table Branch column) |
-| `{{REPO_REMOTE_NAME}}` | `.ai/governance/scm-workflow.md` (Repository table), `.github/agents/ticket-processor.agent.md` (PR-creation instructions, twice), `.github/prompts/pr-review.prompt.md` (SCM remote reference) |
+| `{{REPO_REMOTE_URL}}` | `.ai/governance/scm-workflow.md` (Repository table), `.github/agents/ticket-processor.agent.md` (PR-creation instructions, twice), `.github/prompts/pr-review.prompt.md` (SCM remote reference) |
 | `{{BASE_BRANCHES}}` | `AGENTS.md` (ticket-type branch-naming lines "from `{{BASE_BRANCHES}}`", workflow step 5, branch-strategy bullet, Critical Gotchas branch rule), `.ai/governance/scm-workflow.md` (Base Branches table, workflow steps, prohibitions, checklist, guardrails), `.github/agents/ticket-processor.agent.md` (STEP 4 branch check/prompt/table, PR `destinationBranch`, STOP table, completion next-steps, example), `.ai/behavior/decision-rules.md` (STOP #4, PROCEED checklist), `.ai/governance/copilot-instruction.md` (Section 5.1 branch validation, Section 5.4 Analysis branch table and prompts), `.github/prompts/pr-review.prompt.md` (target-branch check), `.github/copilot-instructions.md` (ticket-type table Branch column and the per-type "Must be on ... branch before starting" rules) |
 | `{{SCM_PLATFORM}}` | `.ai/governance/scm-workflow.md` (Repository table "Platform" row, Step 6 PR-linking), `.github/agents/ticket-processor.agent.md` (PR-creation instructions, CLI MCP note, completion steps, Integration section), `AGENTS.md` (CLI MCP-server note, MCP Setup section), `.github/prompts/pr-review.prompt.md` (description, intro, details heading, platform line, closing note) |
 
@@ -131,7 +146,7 @@ file you are otherwise updating (e.g. `AGENTS.md`, `.github/agents/ticket-proces
 
 ---
 
-## Step: Self-Delete
+## Step 6: Self-Delete
 
 Once `.ai/governance/scm-workflow.md` and every file in the table above has been updated and you
 have reported the summary to the user, delete this file (`create-scm-workflow.prompt.md`) from

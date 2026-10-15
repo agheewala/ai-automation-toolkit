@@ -19,7 +19,7 @@ for a new project with real, verified code examples drawn from that project's ow
 
 > **Self-deleting prompt.** After this file successfully writes
 > `.github/skills/patterns/SKILL.md`, delete this file from the target project's
-> `.github/prompts/` folder (see **Step 6** below). Do not keep it around — a stale generator
+> `.github/prompts/` folder (see **Step 7** below). Do not keep it around — a stale generator
 > invites someone to re-run it later and clobber pattern examples that have since been
 > hand-edited or kept current through normal implementation work.
 
@@ -110,6 +110,11 @@ Author this structure fresh as part of the content you write into
 stack-agnostic in wording (the workflow description itself should not hardcode a language or
 framework name — only the worked example beneath it should use this project's real stack):
 
+- **Freshness marker ("Last verified")**: the scaffold does not define one, so add a single line
+  near the top of the content you write: `Last verified: <today's date, YYYY-MM-DD> (sampled from
+  commit <short git commit SHA>)`. Record the date you ran this generator and the SHA of the commit
+  you actually sampled files from (`git rev-parse --short HEAD` in `CODE_ROOT`). If `CODE_ROOT` is
+  not a git repository, write `Last verified: <date> (no git commit available)`.
 - **How a future contributor finds an existing pattern**: a short "Index" or "Table of Contents"
   near the top of the file listing every layer documented below, in the same order the knowledge
   base lists them, each with a one-line description of when to use it (e.g. "need to add a new
@@ -117,8 +122,8 @@ framework name — only the worked example beneath it should use this project's 
 - **How a future contributor adds a new pattern**: a short numbered procedure at the end of the
   file — read the existing patterns for the layer most similar to the new need, copy the closest
   template, rename placeholders to the new feature's real domain names, verify the new file
-  follows the "key rules" bullets for that layer, and (if this project tracks pattern freshness)
-  update the "Last verified" date at the top of the file. Keep this procedure generic enough to
+  follows the "key rules" bullets for that layer, and
+  update the "Last verified" date and commit SHA at the top of the file. Keep this procedure generic enough to
   apply to any of the layers documented below — do not hardcode a specific layer name into the
   procedure steps themselves.
 
@@ -140,7 +145,7 @@ Do not edit any other file or token in this project. `{{DOMAIN_VOCABULARY}}` and
 
 ---
 
-## Step 6: Self-Delete
+## Step 7: Self-Delete
 
 Once `.github/skills/patterns/SKILL.md` has been written and you have reported the summary to the
 user, delete this file (`create-implementation-patterns.prompt.md`) from the target project's

@@ -71,8 +71,8 @@ whatever `.ai/knowledge-base.md` already recorded) for:
   helper layer, say so explicitly instead of inventing one.
 - **Localization/resource-string mechanism** — find how the project externalizes user-facing text
   (e.g. a resource file, an i18n library, a message catalog). If none exists, say so.
-- **Theme/CSS folder structure** — only if a web UI framework was detected by Task 9's generator:
-  scan for a multi-theme or multi-brand CSS structure (multiple named folders under a shared
+- **Theme/CSS folder structure** — only if a web UI framework was detected in `.ai/knowledge-base.md`
+  (recorded by `create-knowledge-base.prompt.md`): scan for a multi-theme or multi-brand CSS structure (multiple named folders under a shared
   styles root, each containing a base stylesheet and jurisdiction/tenant/brand-specific override
   files). Record the actual theme folder names and file-naming convention found. If the project
   has a single, non-themed stylesheet (or no stylesheet system at all), say so explicitly — do not
@@ -133,6 +133,18 @@ references it, so all four locations stay consistent:
 |---|---|
 | `{{CODING_STANDARDS_BODY}}` | `.ai/governance/coding-standards.md` |
 | `{{THEME_FOLDERS}}` | `.ai/governance/coding-standards.md` (Section 3 body, inside `{{CODING_STANDARDS_BODY}}` itself), `.ai/behavior/setting.md` (Pre-Push Checklist line: "CSS changes applied to `{{THEME_FOLDERS}}`"), `.ai/governance/wcag-fix-patterns.md` (Pre-Push Accessibility Checklist line: "CSS changes applied to `{{THEME_FOLDERS}}` if color/appearance related"), `AGENTS.md` (Critical Gotchas: "CSS theme files — ... touch the following theme folders: `{{THEME_FOLDERS}}`") |
+
+**`{{THEME_FOLDERS}}` when the project has no theme-folder convention.** Do not leave an empty list
+or a bare "none". Fill the token with a phrase that reads naturally in each sentence it sits in, for
+example: "none — this project has no per-theme CSS structure". Use that same fact in all four
+locations, and where the surrounding sentence would read awkwardly (for example a checklist line
+"CSS changes applied to none"), reword that sentence minimally so it still reads correctly (for
+example "CSS changes applied to the project's stylesheet(s); no per-theme folders exist").
+
+**Inline vs. block usage.** `{{THEME_FOLDERS}}` is a full table in `coding-standards.md` but an inline
+phrase in the other three files. When it appears inline in a sentence, produce a concise
+inline-appropriate phrasing (for example a comma-separated list of the real folder names), not the
+full table.
 
 Do not edit any other file or token. `{{BUILD_SCOPE_RULES}}`, `{{RISK_THRESHOLDS}}`, and
 `{{STACK_CHECKLIST}}` in `.ai/behavior/setting.md` are owned by `create-build-settings.prompt.md`

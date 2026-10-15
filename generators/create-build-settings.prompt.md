@@ -19,7 +19,7 @@ stale build command here breaks the whole automated workflow.
 
 > **Self-deleting prompt.** After this file successfully writes `.ai/behavior/setting.md` and
 > propagates the build commands to every file listed below, delete this file from the target
-> project's `.github/prompts/` folder (see the final step below). Do not keep it around — a stale
+> project's `.github/prompts/` folder (see **Step 7** below). Do not keep it around — a stale
 > generator invites someone to re-run it later and overwrite settings that have since drifted from
 > (and now correctly reflect) real build changes made through normal ticket work.
 
@@ -132,15 +132,31 @@ references these tokens:
 | `{{SOLUTION_FILES}}` | `AGENTS.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
 
 Use the exact same build-command strings everywhere a given token appears — these files must never
-disagree with each other about how to build the project. `{{CODING_STANDARDS_BODY}}` and
+disagree with each other about how to build the project.
+
+**Inline vs. block usage.** `{{BUILD_SCOPE_RULES}}` is a full block in `.ai/behavior/setting.md`, and
+`{{SOLUTION_FILES}}`, `{{BUILD_COMMAND_FULL}}` and `{{BUILD_COMMAND_MODULE}}` often sit inside a
+sentence (for example in `.github/prompts/pr-review.prompt.md`). When a token appears inline in a
+sentence rather than as its own block, produce a concise inline-appropriate phrasing of the same
+fact, not the full block verbatim. The commands themselves stay byte-identical in every file; only
+the surrounding wording adapts.
+
+**Single-command and no-solution-file projects.**
+- If the module-level and full-project build commands are identical (single-package project, or no
+  meaningful module split), state the single command once. Do not write "X or the full X", and
+  do not duplicate it as separate "module" and "full" entries; say once that one command covers both.
+- If the target stack has no solution-file concept (for example Node.js, Python, Go, Maven/Gradle
+  single-module projects), describe `{{SOLUTION_FILES}}` as the equivalent root project-manifest
+  file(s) (for example `package.json`, `pom.xml`, `requirements.txt`, `pyproject.toml`, `go.mod`)
+  rather than forcing "solution file" terminology. `{{CODING_STANDARDS_BODY}}` and
 `{{THEME_FOLDERS}}` are owned by `create-coding-standards.prompt.md`; `{{BRANCH_PREFIX_TABLE}}` and
-`{{REPO_REMOTE_NAME}}` are owned by `create-scm-workflow.prompt.md` — do not edit those tokens even
+`{{REPO_REMOTE_URL}}` are owned by `create-scm-workflow.prompt.md` — do not edit those tokens even
 if they appear in a file you are otherwise updating (e.g. `AGENTS.md`,
 `.github/agents/ticket-processor.agent.md`).
 
 ---
 
-## Step: Self-Delete
+## Step 7: Self-Delete
 
 Once `.ai/behavior/setting.md` and every file in the table above has been updated and you have
 reported the summary to the user, delete this file (`create-build-settings.prompt.md`) from the

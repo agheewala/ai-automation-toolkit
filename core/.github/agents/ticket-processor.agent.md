@@ -519,15 +519,15 @@ git push origin <branch_name>
 
 #### B. Create Pull Request
 
-This repo's SCM remote is `{{REPO_REMOTE_NAME}}` (see `.ai/governance/scm-workflow.md` Section 1
+This repo's SCM remote is `{{REPO_REMOTE_URL}}` (see `.ai/governance/scm-workflow.md` Section 1
 for the exact workspace/repo-slug breakdown). Platform: {{SCM_PLATFORM}}. Use the {{SCM_PLATFORM}} MCP tool for
 PR creation, not a different platform's CLI:
 
 **VS Code (MCP tool call, backed by `.vscode/mcp.json`):**
 ```
 <create-pull-request tool exposed by the {{SCM_PLATFORM}} MCP server>(
-  workspace: "<workspace segment of {{REPO_REMOTE_NAME}}>",
-  repository: "<repo-slug segment of {{REPO_REMOTE_NAME}}>",
+  workspace: "<workspace segment of {{REPO_REMOTE_URL}}>",
+  repository: "<repo-slug segment of {{REPO_REMOTE_URL}}>",
   title: "<TicketID>: <Title>",
   sourceBranch: "<branch_name>",
   destinationBranch: "{{BASE_BRANCHES}}",
@@ -686,7 +686,7 @@ tracker and MCP server in use) in workspace settings or environment variables; s
 section of `README.md`.
 
 ### {{SCM_PLATFORM}} Integration
-Ensure the {{SCM_PLATFORM}} MCP server is configured in `.vscode/mcp.json` (never commit this file — see `scm-workflow.md` Section 4) with workspace/repo access for `{{REPO_REMOTE_NAME}}`.
+Ensure the {{SCM_PLATFORM}} MCP server is configured in `.vscode/mcp.json` (never commit this file — see `scm-workflow.md` Section 4) with workspace/repo access for `{{REPO_REMOTE_URL}}`.
 
 ### Default Reviewers
 No automatic default-reviewer config exists in this workspace — reviewer emails are always collected interactively in STEP 9 (Pre-Push Prompt), per the minimum counts in that section.

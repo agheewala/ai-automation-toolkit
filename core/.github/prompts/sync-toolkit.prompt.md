@@ -76,8 +76,8 @@ and list it in your final report under "Files not classified in manifest.json".
 
 <!-- ============================================================================
      SECTION: INSTALL MODE
-     Owned by Task 15. Update Mode (Task 16) and 3-way merge (Task 17) are separate
-     sections below this one; do not add their logic inside this section.
+     Update Mode and the Tier 2 Three-Way Merge are separate sections below this one;
+     do not add their logic inside this section.
      ============================================================================ -->
 
 ## Install Mode
@@ -93,9 +93,15 @@ Read `<source>/manifest.json` and `<source>/VERSION`. Extract the Tier 1 `files`
 `files` list, and the Tier 3 `patterns` list. These lists — not your own guesses — define what
 "Tier 1" and "Tier 2" mean for the rest of this procedure.
 
-### Step 2 — Gather inputs (ask once, up front)
+### Step 2 — Gather core inputs (ask up front)
 
-Ask the user for everything below in a single round, then reuse the answers; do not re-ask later.
+Ask the user for the core inputs below in a single round, then reuse the answers; do not re-ask
+these later. Some generators run in Step 6 will still need additional, generator-specific input
+that only becomes relevant when they run — for example `create-scm-workflow.prompt.md` (remote
+URL, ticket-tracker key, branch prefixes, base branch, SCM platform) and
+`create-data-dictionary.prompt.md` (database engine). Those later questions are expected and are
+not a violation of this step; the rule here is only that the core inputs below are collected once
+and never asked a second time.
 
 1. **Stack overlay.** List the folders under `<source>/stacks/` and ask which one applies. If none
    fits, the user may choose "none" (skip the overlay; record `"stack": "none"`).
@@ -118,10 +124,14 @@ Build the full list of destination files using the **Path mapping** in Shared Co
    `stacks/<chosen-stack>/<same relative path>` (skip if the stack is `none`). Other stacks'
    folders are not copied.
 3. For every file under `<source>/data-dictionary-tooling/`, the destination is
-   `data-dictionary-tooling/<same relative path>`.
+   `data-dictionary-tooling/<same relative path>`. This copy is **unconditional**, regardless of
+   the user's database engine: the `*.sqlserver.sql` export queries are copied even if the project
+   uses a different engine (the DB-engine question is asked later, by the data-dictionary
+   generator, so install cannot know it yet). Step 9 tells the user these files may not apply.
 4. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
    `{{PROJECT_SPECIFIC_FIXES}}` and `{{STACK_CHECKLIST}}` (wcag-fix-patterns.md only) substitutions
-   in Step 5.
+   in Step 5. Those substitutions never apply to `.github/prompts/sync-toolkit.prompt.md` or to
+   anything under `generators/` (see Step 5).
 
 For each planned destination, check whether it already exists in this project. If it does,
 compare it with the content you would write (including the Step 5 substitutions). Identical →
@@ -145,10 +155,12 @@ step.**
 Four placeholder occurrences have no generator that owns them, so install fills them directly in the
 project's copies (never in `<source>`, and never in the baseline):
 
-- `{{PROJECT_NAME}}` → the project name from Step 2, in every copied file that contains it.
+- `{{PROJECT_NAME}}` → the project name from Step 2, in every copied file that contains it
+  (subject to the exclusions below).
 - `{{REQUIRED_MODEL_LIST}}` → the model value from Step 2, in every copied file that contains it
-  (the `model:` frontmatter of the ticket prompts and the Ticket Processor / Domain Engineer
-  agents, plus the "Required Model" prose in `AGENTS.md`). In `model:` frontmatter, write the
+  (subject to the exclusions below), which covers the `model:` frontmatter of the ticket prompts
+  and the Ticket Processor / Domain Engineer
+  agents, plus the "Required Model" prose in `AGENTS.md`. In `model:` frontmatter, write the
   value as the YAML scalar/array the field expects; in prose, write it as a human-readable model
   name or "A or B" list. If the user gave none, leave the token and list it as pending.
 - `{{PROJECT_SPECIFIC_FIXES}}` in `.ai/governance/custom-fixes.md` → replace with a single
@@ -163,12 +175,28 @@ Leave every other `{{...}}` token untouched; the generators in Step 6 own them. 
 exceptions are `{{MODULE_LIST}}`, `{{SHARED_LIBS}}` and `{{STACK_SUMMARY}}`, which are filled in
 Step 6a (in every file that contains them).
 
+**Never substitute inside instructional/meta files.** Do not perform any Step 5 (or Step 6a)
+substitution inside `.github/prompts/sync-toolkit.prompt.md` (this file) or inside any file under
+`generators/`. Those files mention these tokens by name as part of their own instructions — they
+are not filled content, and substituting there would corrupt the instructions (and, for this file,
+make it differ from the toolkit's Tier 1 copy on every update).
+
+**Duplicate occurrences in one file.** If a token appears more than once in the same file — for
+example once as the real standalone placeholder and once inside an explanatory note (typically a
+blockquote) that describes the token — fill only the standalone placeholder occurrence. Never
+fill, rewrite or delete the occurrence embedded in the prose describing it (for example, the
+notes under `{{PROJECT_SPECIFIC_FIXES}}` in `custom-fixes.md` and under `{{STACK_CHECKLIST}}` in
+`wcag-fix-patterns.md` keep their literal token text). The same rule applies to every token a
+generator fills in Step 6.
+
 ### Step 6 — Run the generators, in this verified order
 
 Each generator is a prompt file under `<source>/generators/`. **Read it from the source clone and
 execute its instructions directly against this project** — do not copy it into this project first.
 Reuse the Step 2 answers wherever a generator asks for `PROJECT_NAME`, `SYSTEM_DESCRIPTION`,
-`PVD_PATHS` or `CODE_ROOT`; do not ask the user again.
+`PVD_PATHS` or `CODE_ROOT`; do not ask the user for those again. A generator may still ask
+generator-specific questions that Step 2 did not cover (see Step 2); ask those when the
+generator reaches them.
 
 Each generator ends with a "self-delete this file from `.github/prompts/`" step. Because you run
 them from `<source>`, **skip that step** — there is nothing to delete in this project, and you must
@@ -240,17 +268,29 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
 - Files skipped or saved as `.toolkit-new` in Step 4.
 - Each generator that ran and its outcome, plus any skipped (e.g. data dictionary).
 - Placeholders still pending (any remaining `{{...}}` token in the project's files — search for
-  them and list file + token).
+  them and list file + token). **Exclude from this scan**: `generators/` (all files),
+  `.github/prompts/sync-toolkit.prompt.md`, and `.ai/.toolkit-sync-state/baseline/` — they
+  contain tokens by design (instructional text or unfilled baseline templates), so listing them
+  is noise. Also ignore a token that appears only inside an explanatory note about itself (for
+  example the retained notes in `custom-fixes.md` and `wcag-fix-patterns.md`); a token counts as
+  pending only if a standalone, unfilled placeholder remains.
 - Files copied from `core/` that were not classified in `manifest.json`.
+- **Completeness check.** When confirming that every Tier 1 manifest entry exists in the project,
+  entries under `stacks/` are expected to be **absent** when the chosen stack is `none` or when
+  they belong to a stack other than the chosen overlay (install copies only the chosen stack). That
+  is correct behavior; do not report it as missing.
+- **Database tooling note.** `data-dictionary-tooling/*.sqlserver.sql` is copied unconditionally
+  (Step 3), so if the project's database is not SQL Server (or the data dictionary was deferred),
+  say these files were copied but may not apply, and may be deleted.
 - A closing instruction: review the changes and commit them in this repo yourself; this command
   made no commits.
 
 ---
 
 <!-- ============================================================================
-     SECTION: UPDATE MODE  (Task 16 — detection + Tier 1 overwrite + interim summary)
+     SECTION: UPDATE MODE  (detection + Tier 1 overwrite + interim summary)
      Tier 2 three-way merge, baseline refresh and the version.json bump are owned by the
-     3-way merge section below (Task 17). Do not add them in this section.
+     3-way merge section below. Do not add them in this section.
      ============================================================================ -->
 
 ## Update Mode
@@ -387,7 +427,9 @@ only files whose content actually differs are rewritten and counted in the repor
 are "unchanged").
 
 - If a target Tier 1 file contains a `{{...}}` token, copy it verbatim anyway and list file and
-  token as a toolkit bug under pending placeholders; do not fill it in.
+  token as a toolkit bug under pending placeholders; do not fill it in. Exempt from this listing:
+  `.github/prompts/sync-toolkit.prompt.md` and everything under `generators/`, which mention tokens
+  by name as instructional text by design.
 - Handle `.github/prompts/sync-toolkit.prompt.md` (this very file) **last** among the Tier 1
   files, and tell the user that the updated prompt takes effect on the next invocation; this run
   continues on the instructions already loaded.
@@ -441,7 +483,7 @@ result is re-derivable from disk + `<target>` on every run:
      ============================================================================ -->
 
 <!-- ============================================================================
-     SECTION: 3-WAY MERGE  (Task 17 — invoked from Update Mode Step 7 for Tier 2 files)
+     SECTION: 3-WAY MERGE  (invoked from Update Mode Step 7 for Tier 2 files)
      ============================================================================ -->
 
 ## Tier 2 Three-Way Merge (continuation of Update Mode)

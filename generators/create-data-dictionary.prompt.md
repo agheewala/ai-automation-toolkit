@@ -17,7 +17,7 @@ database (see `core/.ai/governance/SQL_Guidelines.md` Section 0, which already m
 > **Self-deleting prompt.** After this file successfully writes the four files in
 > `.ai/data-dictionary/` and deletes the intermediate CSV exports, delete this file
 > (`create-data-dictionary.prompt.md`) from the target project's `.github/prompts/` folder (see
-> the final step below). This generator can be re-run later from the toolkit source if the schema
+> the **Step 7: Self-Delete** step below). This generator can be re-run later from the toolkit source if the schema
 > changes again — there is no regeneration script kept in the target project itself.
 
 > **No shell script.** All CSV parsing and markdown authoring in this workflow is done by you
@@ -37,6 +37,8 @@ Ask the user directly: *"Which database engine does this project use? (SQL Serve
   `.sql` files, and do not attempt to approximate the SQL Server queries for a different engine's
   system catalog. Suggest the user check back in a future toolkit release, or contribute their own
   export query back to `data-dictionary-tooling/` if they have one. End the generator run here.
+  Also mention that `data-dictionary-tooling/*.sqlserver.sql` were installed unconditionally and
+  do not apply to their engine, so they can be ignored or deleted.
 
 ---
 
@@ -151,8 +153,8 @@ For each row in `procedures.csv`:
    quantifier (e.g. `FROM\s+(?<tbl>\w+)(?:\s+\w+)?(?:\s*,\s*(?<tbl>\w+)(?:\s+\w+)?)*`) and then
    read **all** of `match.Groups["tbl"].Captures`, not just `match.Groups["tbl"].Value` — a plain
    (non-named, non-Captures) approach only returns the LAST repetition of a repeated capture group
-   and silently drops every comma-joined table before it. This exact bug was caught and fixed
-   while building the original version of this tooling — do not reintroduce it.
+   and silently drops every comma-joined table before it. Use the `Captures` approach so no
+   comma-joined table is lost.
 4. Write a section per procedure:
    ```
    ## PROCEDURE_NAME
@@ -228,7 +230,7 @@ For every non-appendix procedure from Step 3c, write one Mermaid flowchart:
 
 ### 3e. Write `.ai/data-dictionary/README.md`
 
-Write a README with the same structure and authority rules as the reference format (sections: a
+Write a README with the following structure and authority rules (sections: a
 summary table of the 4 files, what's in each of the 3 generated files, mandatory usage rules
 instructing never to invent a table/column/procedure name, and a maintenance section explaining
 that these are point-in-time exports with no kept regeneration script — refreshing means re-running
