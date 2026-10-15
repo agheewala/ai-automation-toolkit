@@ -8,10 +8,12 @@ Installs the AI Automation Toolkit into this project (**install mode**) or bring
 installation up to a newer toolkit version (**update mode**).
 
 > **No scripts.** Every action in this prompt is performed by you, the agent, through your own
-> tool calls (`read_file`, `create_file`, file edits, and `run_in_terminal` for git queries only —
-> read-only `git -C <source>` commands, plus `git archive`/`tar` extraction into an OS temp
-> staging folder during update mode). Never write or run an external `.ps1` / `.sh` / `.py` script to copy files,
-> run generators, or write state files.
+> tool calls (`read_file`, `create_file`, file edits, and `run_in_terminal` for git and plain
+> file-system operations — read-only `git -C <source>` commands, `git archive`/`tar` extraction
+> into an OS temp staging folder during update mode, and, in the Tier 2 three-way merge,
+> `git merge-file` on scratch copies plus byte-exact `Copy-Item`/`Remove-Item` of individual
+> files). Never write or run an external `.ps1` / `.sh` / `.py` script file to copy files,
+> run generators, or write state files; each command is issued individually by you.
 
 > **Never commit or push.** This prompt never runs `git add`, `git commit`, or `git push` in this
 > project. It ends by reporting what changed so the user can review and commit in their own repo.
@@ -432,5 +434,164 @@ result is re-derivable from disk + `<target>` on every run:
      ============================================================================ -->
 
 <!-- ============================================================================
-     SECTION: 3-WAY MERGE  (Task 17 — not yet implemented; invoked from Update Mode for Tier 2 files)
+     SECTION: 3-WAY MERGE  (Task 17 — invoked from Update Mode Step 7 for Tier 2 files)
+     ============================================================================ -->
+
+## Tier 2 Three-Way Merge (continuation of Update Mode)
+
+Picks up from the Update Mode Step 7 hand-off. It merges every Tier 2 file, then reconciles
+`.ai/.toolkit-sync-state/baseline/`, then writes `version.json` last, then cleans up and reports.
+It ends the whole `/sync-toolkit` update run. **It never runs `git add`, `git commit` or
+`git push`** — the final step reports and stops so the user can review and commit themselves.
+
+Definitions (for each Tier 2 manifest entry `<manifest-path>` of the **target** manifest):
+
+- `BASE` = `.ai/.toolkit-sync-state/baseline/<manifest-path>` — the template as it was when last
+  synced (placeholders unfilled, `.template` suffix kept).
+- `THEIRS` = `<target>/core/<manifest-path>` — the new template.
+- `MINE` = this project's current, possibly customized `<project-path>`, where `<project-path>` is
+  `<manifest-path>` with a trailing `.template` stripped (Shared Conventions, Path mapping).
+
+Note that `MINE` has its placeholders filled in while `BASE`/`THEIRS` do not. The merge handles
+this naturally: a filled-in line counts as a change on the `MINE` side, and only conflicts if
+`THEIRS` also changed that same region.
+
+### Step 1 — Build the work list and a scratch folder
+
+1. Take the Tier 2 file list from `<target>/manifest.json` (read it again; do not rely on the
+   in-memory hand-off list). This is the **target Tier 2 set**. A Tier 2 file that is only a
+   `deprecated` match is not in the set and is not merged.
+2. Create a scratch folder `<work>` = `<temp>/toolkit-merge-<yyyyMMddHHmmss>/` (UTC time, or a
+   random 8-character suffix if the time is unavailable). It must not already exist; never reuse
+   or empty a pre-existing folder. Merges are performed on copies in `<work>` so that `MINE` is
+   only ever replaced by a finished result, never left half-written.
+
+### Step 2 — Classify each file before merging
+
+For every entry in the target Tier 2 set, decide its case, first match wins. Record the outcome
+and whether its baseline entry is refreshed (see Step 6):
+
+| Case | Action | Outcome | Baseline entry |
+|---|---|---|---|
+| `MINE` does not exist (already flagged as a new/missing Tier 2 file in Update Mode Step 3, or deleted by the user) | Nothing to merge. | `not present in project` | add / refresh |
+| `BASE` does not exist (new Tier 2 file, or damaged baseline) | No common ancestor, so no 3-way merge is possible. If `MINE` is byte-identical to `THEIRS` after the install placeholder substitutions, outcome `unchanged`. Otherwise copy `THEIRS` next to the project file as `<project-path>.toolkit-new` (overwriting an earlier `.toolkit-new`) and do not touch `MINE`. | `NO MERGE BASE — compare manually` | add |
+| `MINE` still contains conflict markers from an earlier sync (a line starting `<<<<<<< ` **and** a line starting `>>>>>>> `) | Do not merge on top of markers. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (markers from a previous sync, not merged)` | **keep as is** (not refreshed) |
+| `BASE` and `THEIRS` are byte-identical | The toolkit did not change this file. Leave `MINE` untouched. | `unchanged` | refresh (no-op) |
+| otherwise | Merge (Step 3). | decided in Step 4 | per Step 4 |
+
+The "keep as is" rule matters: refreshing the baseline to `THEIRS` while `MINE` does not contain
+the `THEIRS` changes would make the next merge treat those upstream changes as the user's
+deletions and silently drop them. The baseline therefore only advances for a file when `MINE`
+actually incorporates (or already equals) the target version of it.
+
+### Step 3 — Run the three-way merge
+
+For each file that reached "otherwise" in Step 2:
+
+1. Copy `MINE` byte-for-byte to `<work>/<project-path>` (create folders as needed).
+2. Run, with your own `run_in_terminal` call, a merge **in place on the scratch copy** (no output
+   redirection and no pipe — PowerShell pipes can alter line endings and encodings):
+   ```powershell
+   git merge-file -L "project (current)" -L "baseline (<installed version>)" -L "toolkit <target version>" "<work>/<project-path>" "<BASE path>" "<THEIRS path>"
+   ```
+   Argument order is *current, base, other*: `MINE`'s copy, then `BASE`, then `THEIRS`. `git merge-file`
+   is a plain three-file text merge; it works on loose files and does not need this project, or
+   any of the three files, to be inside a git repository. Quote every path (they may contain
+   spaces). Read the exit code immediately (`$LASTEXITCODE`).
+3. Interpret the exit code:
+   - `0` — clean merge.
+   - `1`–`127` — that many conflicts; the scratch copy now contains standard conflict markers
+     (`<<<<<<< project (current)` … `=======` … `>>>>>>> toolkit <target version>`).
+   - anything else (e.g. `255` / negative — usually a binary or unreadable file) — error.
+
+### Step 4 — Apply the result
+
+- **Exit `0` (clean):** if the scratch copy differs from `MINE`, copy it over `<project-path>`
+  (`Copy-Item -LiteralPath <scratch> -Destination <project-path> -Force`) and record
+  `clean-merged`; if it is identical to `MINE`, record `unchanged`. Baseline: refresh.
+- **Exit `1`–`127` (conflicts):** copy the scratch copy, **with its conflict markers**, over
+  `<project-path>` and record `NEEDS MANUAL RESOLUTION (<n> conflict(s))`. **Never resolve a
+  conflict by silently picking one side, and never drop the markers.** Clean hunks in the same
+  file are already merged by `git merge-file`; only genuine conflicts carry markers. Baseline:
+  refresh (the next sync merges against this version's template regardless of whether the user
+  has resolved today's markers yet; the marker guard in Step 2 protects an unresolved file from
+  being merged again on top of its markers).
+- **Error:** leave `<project-path>` untouched and record `ERROR — not merged (<reason>)`.
+  Baseline: **keep as is**. Continue with the remaining files and list it in the summary so the
+  user can re-run `/sync-toolkit` to retry it.
+
+### Step 5 — Post-merge placeholder check
+
+For every file recorded `clean-merged` or conflicted, search the merged `<project-path>` for
+`{{...}}` tokens that were **not** present in `MINE` before the merge (the toolkit template
+introduced a new placeholder). Do not fill them; list file + token under "Placeholders still
+pending" in the final summary.
+
+### Step 6 — Reconcile `baseline/` against the target manifest (before `version.json`)
+
+This is the **Baseline reconciliation contract** from Update Mode Step 7. Derive everything from
+disk and `<target>`, not from this run's in-memory notes, so the result is correct even after
+several interrupted runs. The baseline is tool-owned state, so removing or rewriting its entries
+does not need user confirmation.
+
+1. **Remove.** List every file under `.ai/.toolkit-sync-state/baseline/` recursively. Delete each
+   one whose path relative to `baseline/` is **not** in the target Tier 2 set — this covers paths
+   in the target's `deprecated` array, paths dropped from Tier 2 or from the manifest, deprecated
+   files the user chose to keep, and entries orphaned by an earlier interrupted run. Then remove
+   any `baseline/` folders left empty.
+2. **Add / refresh.** For every Tier 2 entry whose Step 2/4 baseline decision is *add* or
+   *refresh*, copy `<target>/core/<manifest-path>` to `baseline/<manifest-path>` byte-for-byte
+   (`Copy-Item -LiteralPath … -Force`, creating folders as needed). These are the raw templates:
+   placeholders **unfilled** and the `.template` suffix **kept** (matching Install Step 8 — the
+   baseline never holds this project's filled-in content or the stripped project name). Entries
+   marked *keep as is* are left exactly as they are, but **only if they already exist**; a
+   missing entry is always added.
+3. **Verify.** The set of files under `baseline/` must now equal the target Tier 2 set exactly.
+   If not, stop and report the difference — and do **not** write `version.json`.
+
+The order is fixed: `baseline/` here first, `version.json` in Step 7 last, so `version.json`
+naming a version always means the baseline matches that version's Tier 2 set.
+
+### Step 7 — Write `version.json` (last write to sync state)
+
+Overwrite `.ai/.toolkit-sync-state/version.json` with `toolkitVersion` = the target version
+(`<target>/VERSION`, trimmed), `stack` unchanged from the installed value, and `syncedAt` = the
+current ISO 8601 UTC time (ask the user if you cannot determine it):
+```json
+{ "toolkitVersion": "<target version>", "stack": "<installed stack>", "syncedAt": "<now>" }
+```
+
+### Step 8 — Clean up this run's temporary files
+
+Remove, and only these: `<work>` (Step 1), and — if Update Mode Step 2 extracted a staging copy —
+`<stage>` and `<stage>.tar` (`Remove-Item -LiteralPath <path> -Recurse -Force`). Paths are the
+exact ones this run created; never glob `toolkit-*` and never remove other leftovers (just mention
+them). **Never remove `<source>`**, including when `<target>` = `<source>`. A cleanup failure is
+not an update failure: report the path so the user can delete it. If the run aborts after
+staging was created, remove this run's `<work>`/`<stage>`/`<stage>.tar` before stopping.
+
+### Step 9 — Final summary, then stop
+
+Print one report that combines the Update Mode Step 7 interim summary (missing/added, deprecated,
+unrecognized, Tier 1 overwritten, warnings) with:
+
+- Target version and previous version.
+- Every Tier 2 file with its outcome: `unchanged` / `clean-merged` / `NEEDS MANUAL RESOLUTION`
+  (with conflict count, or the reason) / `NO MERGE BASE — compare manually` (with the
+  `.toolkit-new` path) / `not present in project` / `ERROR — not merged`.
+- A prominent **"Needs manual resolution"** list: files containing conflict markers (search for
+  `<<<<<<<` to resolve) and any file not merged, with the instruction to resolve the markers and
+  review the diff.
+- Baseline: entries added, removed (and why), refreshed, and kept as is.
+- Placeholders still pending (Step 5, plus Update Mode findings) and files not classified in
+  `manifest.json`.
+- Cleanup result (Step 8), and if any file was `ERROR`/kept as is, that re-running `/sync-toolkit`
+  retries it.
+- A closing instruction: review the changes and commit them in this repo yourself; this command
+  made no commits and pushed nothing.
+
+Then **stop**. Do not run `git add`, `git commit` or `git push`.
+
+<!-- ============================================================================
+     END OF FILE. Install Mode + Update Mode + 3-Way Merge together are the complete /sync-toolkit.
      ============================================================================ -->
