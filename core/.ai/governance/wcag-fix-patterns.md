@@ -322,7 +322,7 @@ Each detected issue must include:
 {
   "rule_id": "image-alt",
   "wcag_sc": "1.1.1",
-  "file_path": "src/views/home.cshtml",
+  "file_path": "views/home.<ext>",
   "line": 42,
   "selector_or_snippet": "<img src=\"hero.png\">",
   "severity": "Critical",
@@ -2755,7 +2755,7 @@ Navigation menus that appear on multiple pages must appear in the same relative 
 
 ```html
 <!-- Fix — use a shared partial/layout for navigation -->
-<!-- _Layout.cshtml -->
+<!-- layout.<ext> -->
 <header>
   <nav aria-label="Main navigation">
     <ul>
@@ -2768,7 +2768,7 @@ Navigation menus that appear on multiple pages must appear in the same relative 
 </header>
 ```
 
-**Detection:** Check that the shared navigation partial (`_Layout.cshtml`, `_Nav.cshtml`, `_Header.cshtml`) is used consistently and that nav item order does not differ between page templates.
+**Detection:** Check that the shared navigation partial (`layout.<ext>`, `nav.<ext>`, `header.<ext>`) is used consistently and that nav item order does not differ between page templates.
 
 ### Consistent component identification (3.2.4)
 
