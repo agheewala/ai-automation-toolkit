@@ -292,7 +292,9 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
 - **Completeness check.** When confirming that every Tier 1 manifest entry exists in the project,
   entries under `stacks/` are expected to be **absent** when the chosen stack is `none` or when
   they belong to a stack other than the chosen overlay (install copies only the chosen stack). That
-  is correct behavior; do not report it as missing.
+  is correct behavior; do not report it as missing. Likewise, the `generators/` entries being
+  absent ("generators not copied (folder collision)") is expected and acceptable when Step 7's
+  collision check led the user to decline the copy; do not flag it as a bug.
 - **Database tooling note.** `data-dictionary-tooling/*.sqlserver.sql` is copied unconditionally
   (Step 3), so if the project's database is not SQL Server (or the data dictionary was deferred),
   say these files were copied but may not apply, and may be deleted.

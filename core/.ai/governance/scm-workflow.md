@@ -28,9 +28,10 @@
 | `{{BASE_BRANCHES}}` | Active development — **start ALL work here** | Pull before branching; all feature branches merge back here |
 | `<production-release branch>` | Production releases | **Never commit directly** — merged from `{{BASE_BRANCHES}}` by release manager only |
 
-> `{{BASE_BRANCHES}}` is populated per-project by `generators/create-scm-workflow.prompt.md` with the
-> name of the branch that all work starts from and all PRs target (used inline everywhere in this
-> file and in the other workflow files). The `<production-release branch>` placeholder in the second
+> The base-branch name shown in this table is populated per-project by
+> `generators/create-scm-workflow.prompt.md` with the name of the branch that all work starts from
+> and all PRs target (the same name is used inline everywhere in this file and in the other
+> workflow files). The `<production-release branch>` placeholder in the second
 > row (and in the prohibitions below) is replaced by the same generator with the project's real
 > production-release branch name; if the project has no separate production-release branch, the
 > generator removes that row and the production-release-specific prohibitions.
@@ -43,9 +44,9 @@
 
 {{BRANCH_PREFIX_TABLE}}
 
-> `{{BRANCH_PREFIX_TABLE}}` is populated per-project by `generators/create-scm-workflow.prompt.md`
-> with this project's actual ticket-type-to-branch-prefix mapping (placeholder values, example
-> branch names, and the Type Reference table) — do not hardcode any single project's prefixes
+> The block above is populated per-project by `generators/create-scm-workflow.prompt.md` with this
+> project's actual ticket-type-to-branch-prefix mapping (placeholder values, example branch names,
+> and the Type Reference table) — do not hardcode any single project's prefixes
 > (e.g. `BUG`/`ER`/`CR`) in this `core/` file.
 
 > **Analysis tickets** do not require a branch — they are investigation-only and produce no code changes.

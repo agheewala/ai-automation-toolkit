@@ -69,7 +69,9 @@ Do not assume any single source-control platform or branch-prefix scheme. Detect
   domain) — do not assume Bitbucket or GitHub without evidence. Record the platform's display
   name (e.g. `Bitbucket`, `GitHub`, `GitLab`, `Azure DevOps`) as the value of `{{SCM_PLATFORM}}`.
   If no remote is configured yet
-  (brand-new repo), ask the user for the intended remote path instead of leaving it blank.
+  (brand-new repo), ask the user for the intended remote path instead of leaving it blank; if the
+  user answers "none yet", use the same `<remote URL not yet configured>` literal and pending-item
+  reporting defined in the no-git-repository note above, so both cases produce the same value.
 - **Ticket-tracker project prefix** — if the project uses Jira (or another ticket tracker with a
   short project-key convention), ask the user for the actual project key (e.g. the letters before
   the dash in a ticket ID like `PROJ-1234`) and the tracker's name. Do not invent one. The tracker
