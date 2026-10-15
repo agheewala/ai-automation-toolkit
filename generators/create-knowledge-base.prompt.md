@@ -48,8 +48,11 @@ description, or paths.
 4. Write `.ai/knowledge-base.md` using the exact section structure in **Required Output
    Structure** below, populated entirely from what you found in steps 1-3 — never invent facts,
    table names, status codes, or business rules that aren't backed by something you actually read.
+   If the project uses a database, also run the **Optional: SQL Audit-Stamp & Reversal Policy**
+   step below and record the result under Section 7.
 5. Report to the user: which sections were fully populated, which were left thin or marked
-   "not found" due to insufficient source material, and what stack was detected.
+   "not found" due to insufficient source material, what stack was detected, and whether the SQL
+   audit-stamp/reversal-policy fields were documented or left undocumented.
 6. Delete this generator prompt file from the project's `.github/prompts/` folder.
 
 ---
@@ -173,6 +176,9 @@ Notes on applying this structure to a different project's domain:
   the codebase for its core entities.
 - **Section 7** ("Key DB Tables") should reflect whatever persistent storage technology was
   detected (tables, collections, indexes — whatever term fits the detected database technology).
+  It also hosts the **Database Conventions** subsection (audit-stamp column, stamp prefix,
+  reversal policy) produced by the optional step below — do not create a new numbered section
+  for it.
 - **Section 14** ("Complex Business Rule Matrix / State Engine") is a placeholder for *whatever
   complex, non-obvious rules engine or matrix this project's own domain actually has* (e.g. a
   reversal/undo matrix, a permission matrix, a pricing matrix, a state-transition engine). If no
@@ -189,6 +195,49 @@ Notes on applying this structure to a different project's domain:
 Every section must be grounded in something you actually read from `CODE_ROOT` or `PVD_PATHS` in
 this run. Where you cannot find supporting material for a section, write a short explicit note
 (e.g. "Not found in current codebase — revisit once implemented") instead of fabricating content.
+
+---
+
+## Optional: SQL Audit-Stamp & Reversal Policy
+
+`.ai/governance/SQL_Guidelines.md` needs three facts about the project's database conventions and
+will STOP and ask the user if any is missing from `.ai/knowledge-base.md`. Collect them once here
+so that stop-and-ask is not hit on first use. **This step is OPTIONAL and must never block
+generation.**
+
+Run it only if a database was detected in **Auto-Detection Instructions** and the project
+appears to use an audit/timestamp column convention (e.g. a recurring "last updated by/at" or
+similar stamp column across tables in schema files, migrations, or data-access code). If no
+database or no such convention is visible, skip the step and record the fields as undocumented.
+
+For each field, first try to detect it from the codebase/schema (e.g. the most frequent
+stamp-style column, existing production-fix scripts, or documented policy in `PVD_PATHS`). Report
+what was detected and ask the user once, in a single message, to confirm or supply:
+
+1. **Audit-stamp column name** — the column that records which ticket/change modified a row.
+2. **Stamp prefix convention** — the fixed prefix (if any) used in the stamp value, including
+   whether it embeds a project/jurisdiction code.
+3. **Reversal-script policy** — whether production data-fix scripts must include a reversal
+   script (and, if it varies by project/jurisdiction code, the mapping).
+
+Rules:
+- If the user doesn't know, or the project has no such policy yet, accept that. Do not ask
+  follow-ups and do not guess.
+- Record only values that were detected in code/docs or confirmed by the user.
+- Write the result in `.ai/knowledge-base.md` Section 7 under a `### Database Conventions`
+  subsection using this shape:
+
+  ```
+  ### Database Conventions
+  - Audit-stamp column: <name | Undocumented>
+  - Stamp prefix: <prefix/format | Undocumented>
+  - Reversal script required: <Yes | No (explicitly not required) | Undocumented>
+  ```
+
+- For any field marked `Undocumented`, add the note: "Not yet documented — SQL_Guidelines.md
+  will stop and ask the user when a SQL script needs this value; update this section once
+  known." Do not write `No` unless the user or documentation explicitly states reversal is not
+  required — `Undocumented` and `No` are different outcomes.
 
 ---
 
