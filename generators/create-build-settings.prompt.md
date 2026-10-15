@@ -106,6 +106,13 @@ record each distinctly and ask the user which one(s) the ticket workflow's build
   already found. Do not duplicate the WCAG-specific `{{STACK_CHECKLIST}}` instance that lives in
   `.ai/governance/wcag-fix-patterns.md` — that is a separate token occurrence owned by a different
   (accessibility-focused) generator; leave it untouched.
+  Live detection against the actual repo is the primary and authoritative source for this
+  checklist. As a supplementary hint only, also check whether `stacks/<detected-stack>/notes.md`
+  exists in this package (e.g. `stacks/dotnet-mvc/notes.md`) for the stack identified in
+  `CODE_ROOT`'s `.ai/knowledge-base.md`; if present, read it for example pre-push gate ideas worth
+  confirming against the real codebase. If no matching `stacks/<stack>/notes.md` file exists, skip
+  this step entirely and rely solely on live detection — a missing overlay file must never block
+  or weaken the checklist.
 
 ---
 
