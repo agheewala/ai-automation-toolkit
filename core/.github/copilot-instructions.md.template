@@ -1,0 +1,152 @@
+# GitHub Copilot Instructions – Domain‑Aware Development
+
+These instructions define **non‑negotiable context and guardrails**
+that GitHub Copilot must respect when assisting with the {{PROJECT_NAME}} repository.
+
+---
+
+## ⛔ TICKET TYPE RULES — Absolute, No Exceptions
+
+When a `fix ticket` command is received, determine the `Type` field first.
+Every type has a mandatory flow. Deviating from it is not permitted.
+
+| Type | Branch | Build | Reviewers | Output |
+|------|--------|-------|-----------|--------|
+| **Bug** | `BUG/<TicketID>_<Title>` from `Development` | Module solution | Min 1 | Code + PR |
+| **Enhancement** | `ER/<TicketID>_<Title>` from `Development` | Full `MCS.sln` | Min 1 | Code + PR |
+| **CR** | `CR/<TicketID>_<Title>` from `Development` | Full `MCS.sln` | Min 1 | Code + PR |
+| **Analysis** | ❌ None | ❌ None | ❌ None | Written report in chat only |
+
+### Per-Type Hard Rules
+
+**Bug**
+- STOP and confirm if more than 3 files need to change
+- Build the module solution only (e.g. `Enterprise/Enterprise.sln`) unless shared libs are touched
+- Must be on `Development` branch before starting
+
+**Enhancement**
+- Full `MCS.sln` build is mandatory — enhancements can affect multiple modules
+- Flag any cross-module impact before writing any code
+- Must be on `Development` branch before starting
+
+**CR (Change Request)**
+- Full `MCS.sln` build is mandatory
+- STOP if any shared library (`Utility.Standard` / `Utility.Core`) change is needed — team lead sign-off required first
+- Minimum 1 reviewer on PR
+- Must be on `Development` branch before starting
+
+**Analysis**
+- Deliver a written root cause and recommendation report in chat
+- NO branch creation under any circumstances
+- NO code changes under any circumstances
+- NO build, NO commit, NO push
+- End after delivering the report
+
+---
+
+Copilot MUST treat the following documents as authoritative sources
+of truth for understanding the system.
+
+---
+
+## 🔹 Authoritative Context Files (Read First)
+
+Copilot must always refer to and align its suggestions with:
+
+1. `.ai/knowledge-base.md`
+   - **Canonical single source** combining domain overview, supplement types/statuses, cross-cutting rules, module ownership map, DB table ownership, transaction flow sequences, code patterns, and naming conventions
+   - Primary anchor for ALL domain, rule, architecture, and module-boundary decisions
+   - Replaces the former `domain-context.md` + `architecture.md` split
+
+2. `.ai/data-dictionary/` (`db-schema-dictionary.md`, `stored-procedures.md`, `stored-procedure-dataflows.md`, `README.md`)
+   - **Authoritative, priority source for all database schema and SQL facts** — generated from a
+     database catalog export (every table, every column, data type, nullability, PK, description)
+     plus the full stored procedure library (complete script + Mermaid dataflow diagram per
+     procedure)
+   - MUST be consulted first whenever: a SQL script needs to be prepared (production fix, ad-hoc
+     query, or stored procedure), any data analysis is requested, or any code change performs a
+     `SELECT` / `INSERT` / `UPDATE` / `DELETE` against the database
+   - Takes priority over hand-written/summarized table lists elsewhere when there is a conflict on
+     table/column existence, naming, or data type
+   - Never invent a table, column, or stored procedure name/signature — verify against these files
+     first; if not found, treat as unknown and ask the user (see `.ai/behavior/decision-rules.md`)
+
+---
+
+## 🔹 Authority Rules (CRITICAL)
+
+When different sources conflict, Copilot must follow this order of authority:
+
+1. **Current source code behavior is authoritative**
+2. Domain and rule documentation clarifies intent and constraints
+3. Legacy PVD intent is secondary and may be outdated
+
+Copilot must:
+- ✅ Respect enforced behavior in code
+- ✅ Warn when a change appears to violate documented domain or architectural rules
+- ❌ Never “optimize” or refactor by violating domain or architectural guardrails
+- ❌ Never reintroduce legacy behavior that is no longer enforced
+
+---
+
+## 🔹 Architectural Guardrails
+
+Copilot MUST:
+- Respect existing architectural layering and module boundaries
+- Avoid bypassing service, validation, or enforcement layers
+- Avoid introducing cross‑module dependencies without explicit justification
+- Propose changes that are localized to the relevant module whenever possible
+
+Copilot MUST NOT:
+- Move business rules to inappropriate layers
+- Copy domain logic across modules
+- Refactor across module boundaries unless explicitly asked
+
+---
+
+## 🔹 Domain & Rule Awareness
+
+Copilot should:
+- Assume domain rules and validations are intentional
+- Preserve lifecycle, compliance, and financial integrity rules
+- Treat batch processing, background jobs, and deferred enforcement
+  as authoritative system behavior
+
+If a request appears to conflict with domain rules:
+- Copilot should **explain the conflict**
+- Suggest **safe alternatives** instead of unsafe changes
+
+---
+
+## 🔹 Change Guidance
+
+When assisting with changes, Copilot should:
+
+- Prefer modifying existing patterns over introducing new ones
+- Reuse existing services, utilities, and enforcement mechanisms
+- Highlight potential downstream impacts of a change
+- Ask clarifying questions only when absolutely necessary
+
+---
+
+## 🔹 Documentation Discipline
+
+Copilot should:
+- Keep documentation consistent with code changes
+- Suggest updates to domain or module documentation
+  when behavior meaningfully changes
+
+---
+
+## ✅ Summary
+
+Copilot is expected to behave as a **senior, domain‑aware engineer**
+who understands:
+- The business domain
+- Global system rules
+- Architectural boundaries
+- Module‑level ownership
+
+Speed is secondary to **correctness, safety, and compliance**.
+
+---

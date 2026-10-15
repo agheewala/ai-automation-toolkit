@@ -1,0 +1,318 @@
+# {{PROJECT_NAME}} — AI Agent Guidelines
+
+> **Master authority for all AI-assisted work in this workspace.**  
+> **🌟 NEW USER?** Start here → [**User Guide**](#quick-orientation) (2 min)  
+> **📚 Full Docs & Transfer Guide:** [README.md](README.md)
+
+---
+
+## 🚀 Fully Automated Workflow (NEW)
+
+### Two Simple Commands = Complete Automation
+
+**Command 1: Fix Ticket**
+```
+fix ticket
+
+TicketID: PROJ-1234
+Type: Bug|Enhancement|CR|Analysis
+Description: <issue description>
+```
+
+**Command 2: Fix ADA Issues**
+```
+/fixada-file C:\BrowserStackReport\scan.csv
+/fixada-folder C:\BrowserStackReport\
+/fixada-results https://accessibility.browserstack.com/report/123
+/fixada-preventive C:\path\to\code\
+```
+
+### What Happens Automatically
+
+**Ticket Workflow:**
+```
+1. ✅ Fetch Jira ticket (if accessible)
+2. ✅ Load domain knowledge from .ai/knowledge-base.md
+3. ✅ Analyze scope, risk, and impact
+--- TYPE GATE (non-negotiable — evaluated immediately after step 3) ---
+
+Type = Analysis:
+  → Deliver written analysis report in chat ONLY
+  → STOP — no branch, no code, no build, no push, no commit
+  → Do NOT continue to steps 4–14 under any circumstances
+  → See .ai/behavior/setting.md section 7 for Analysis posture
+  → Mode: "Ask" or "Plan" chat mode is sufficient — Analysis is read-only (no edits/build/push), so
+    Ask/Plan mode's restricted toolset can complete it. Agent mode also works.
+
+Type = Bug:
+  → Continue to step 4
+  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `Development`
+  → Build scope: Module solution only (e.g. {{SOLUTION_FILES}})
+  → Full {{SOLUTION_FILES}} build only if shared libs touched
+  → STOP if more than 3 files need to change — confirm scope first
+  → Minimum 1 reviewer required on PR
+  → Mode: Requires "Agent" chat mode (or the Ticket Processor agent) — Plan mode cannot
+    create branches, edit files, run builds, or push
+
+Type = Enhancement:
+  → Continue to step 4
+  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `Development`
+  → Build scope: Full {{SOLUTION_FILES}} mandatory
+  → Minimum 1 reviewer required on PR
+  → Flag any cross-module impact before implementing
+  → Mode: Requires "Agent" chat mode (or the Ticket Processor agent) — same reason as above
+
+Type = CR (Change Request):
+  → Continue to step 4
+  → Branch naming: per {{BRANCH_PREFIX_TABLE}}, from `Development`
+  → Build scope: Full {{SOLUTION_FILES}} mandatory
+  → Minimum 1 reviewer required on PR
+  → STOP if shared library change needed — require team lead sign-off first
+  → Show full regression testing checklist before commit
+  → Mode: Requires "Agent" chat mode (or the Ticket Processor agent) — same reason as above
+
+----------------------------------------------------------------------
+4. ⏸️  Present analysis → Wait for your confirmation
+5. ✅ Check current branch → if Development: git pull + ask branch strategy (A: stay on Development / B: create new branch)
+6. ✅ Implement fix using domain patterns
+7. ✅ Validate build passes
+8. ✅ Show testing checklist in chat
+9. ⏸️  Ask commit confirmation → Wait for "yes" or "y" → commit code
+10. ⏸️ Show changes summary → Wait for "PUSH BRANCH" or "PUSH" approval
+11. ⏸️ Ask for reviewer emails
+12. ✅ Push branch
+13. ✅ Create Pull Request
+14. ✅ Provide instructions to link PR to Jira
+```
+
+**ADA Workflow:**
+```
+1. ✅ Load WCAG patterns from .ai/governance/wcag-fix-patterns.md
+2. ✅ Parse violations from CSV/folder/URL
+3. ✅ Triage by severity
+4. ⏸️  Ask branch strategy → Wait for your choice
+5. ✅ Apply fixes using 3-tier priority
+6. ✅ Validate build passes
+7. ⏸️  Show changes → Wait for "PUSH BRANCH" or "PUSH" approval
+8. ✅ Push branch
+9. ✅ Create Pull Request
+```
+
+### How to Use
+
+**For Ticket Fixes:**
+```
+fix ticket
+
+TicketID: PROJ-1234
+Type: Bug
+Description: <your description>
+```
+
+**For ADA Fixes (use the specific command for your source):**
+```
+/fixada-file C:\Reports\scan.csv          ← single file
+/fixada-folder C:\Reports\               ← whole folder
+/fixada-results https://browserstack...  ← URL
+/fixada-preventive C:\path\to\code\      ← pre-scan check
+```
+
+**You only need to:**
+- ✅ Confirm the pre-code analysis (Ticket) OR branch strategy (ADA)
+- ✅ Choose branch strategy: A (stay on Development) or B (create new branch)
+- ✅ Type "yes" or "y" when ready to commit
+- ✅ Provide reviewer email addresses when prompted
+- ✅ Type "PUSH BRANCH" or "PUSH" when ready to push
+
+**Everything else is automated** — no manual branching, no manual commits, no manual PR creation.
+
+### Which Chat Mode to Use
+
+| Ticket `Type` | Chat mode | Why |
+|---|---|---|
+| `Analysis` | **Ask mode**, **Plan mode**, or Agent mode | Read-only — no branch/edit/build/push, so Ask/Plan mode's restricted toolset is enough |
+| `Bug` / `Enhancement` / `CR` | **Agent mode** (or the `Ticket Processor` agent) | Requires file edits, `run_in_terminal` (build/git), and subagent calls — tools Plan mode does not expose |
+| ADA fixes (`/fixada-*`) | **Agent mode** (or `Ticket Processor` agent) | Same reason — file edits, build, push |
+
+If you start a Bug/Enhancement/CR ticket in Plan mode, it will only complete the pre-code analysis and then stop — this is expected, not a bug. Switch to Agent mode to run steps 4–14.
+
+### Required Model — Strictly Enforced
+
+Whenever the `fix ticket` command (or `/auto-fix`, `/fixada-*`) is used, the workflow MUST run on
+**Claude Sonnet 5 or Claude Sonnet 5.5** — no other model. This is enforced via the `model:`
+frontmatter field (with fallback array) on:
+- [`.github/prompts/fix-ticket.prompt.md`](.github/prompts/fix-ticket.prompt.md)
+- [`.github/prompts/auto-fix.prompt.md`](.github/prompts/auto-fix.prompt.md)
+- [`.github/agents/ticket-processor.agent.md`](.github/agents/ticket-processor.agent.md)
+- [`.github/agents/domain-engineer.agent.md`](.github/agents/domain-engineer.agent.md) (invoked as a subagent during implementation)
+
+Do not manually switch to a different model mid-workflow for these commands.
+
+> **VS Code vs CLI:** The `model:` frontmatter override is confirmed to work in VS Code (and
+> JetBrains/Eclipse/Xcode). GitHub Copilot CLI may not honor it the same way — the CLI session's
+> currently active model takes priority. When running `fix ticket` from the CLI, explicitly set
+> the model for the session first (`copilot --model <model-name>` at launch, or the `/model`
+> command inside a session) so it matches Claude Sonnet 5/5.5 before invoking the workflow.
+
+### Running `fix ticket` from GitHub Copilot CLI
+
+The `/fix-ticket` and `/auto-fix` **slash commands** only exist in VS Code — Copilot CLI does not
+discover `.github/prompts/*.prompt.md` files at all. The underlying automation
+(`.github/agents/ticket-processor.agent.md`) IS read by the CLI (repository-level custom agents
+live in `.github/agents`, same path for both), so the full workflow still works — it's just
+invoked differently:
+
+```
+# Option 1: call out to the agent directly in a prompt (CLI infers the agent)
+Use the Ticket Processor agent to fix this ticket:
+TicketID: PROJ-1234
+Type: Bug
+Description: <issue description>
+
+# Option 2: select it interactively
+/agent
+# then choose "Ticket Processor" from the list
+
+# Option 3: pass it as a command-line flag
+copilot --agent="Ticket Processor" --prompt "TicketID: PROJ-1234
+Type: Bug
+Description: <issue description>"
+```
+
+Two things to set up once before relying on this in the CLI:
+1. **Model** — set it explicitly for the session (see note above); frontmatter enforcement is not
+   guaranteed outside VS Code/IDEs.
+2. **Bitbucket MCP server** — the CLI keeps its own MCP registry, separate from `.vscode/mcp.json`
+   (default `~/.copilot/mcp-config.json`, or the `COPILOT_HOME` directory). Register the Bitbucket
+   server there too (`copilot mcp add --transport http bitbucket <url>` or `/mcp add`) so STEP 9
+   (PR creation) can run from the CLI; otherwise the agent falls back to reporting the pushed
+   branch and asking you to open the PR manually in Bitbucket.
+
+Everything else — `.ai/knowledge-base.md`, `.ai/governance/*`, `.ai/behavior/*`, `AGENTS.md`, and
+`.github/copilot-instructions.md` — is plain Markdown read identically by both VS Code and the CLI,
+so ticket-type rules, STOP/FLAG logic, build scope, and reviewer counts behave the same either way.
+
+### Available Agents
+
+- **Ticket Processor** — Fully automated ticket-to-PR workflow
+- **Domain Engineer** — Domain-aware code implementation and review
+
+---
+
+## 🔌 MCP Setup (Required for Full Automation)
+
+**Enables:** Automatic Jira ticket fetching and Bitbucket PR creation
+
+**See:** [README.md](README.md#-mcp-setup-required-for-full-automation) for complete setup guide (10-15 min)
+
+### Quick Summary
+- Install `uvx` package manager
+- Generate Jira API token and Bitbucket app password
+- Create `.vscode/mcp.json` with your credentials
+- Test with `@workspace Get Jira ticket PROJ-1234`
+
+**⚠️ Security:** Never commit `.vscode/mcp.json` to Git!
+
+---
+
+## Quick Orientation
+
+| Item | Detail |
+|---|---|
+| Project | {{PROJECT_NAME}} |
+| Modules | {{MODULE_LIST}} |
+| Stack | {{STACK_SUMMARY}} |
+| Shared libs | {{SHARED_LIBS}} |
+
+---
+
+## How to Receive Work
+
+All work is submitted as a **chat-based ticket**. Do NOT start coding until you have read and confirmed the ticket. Full rules: [`.ai/governance/copilot-instruction.md`](.ai/governance/copilot-instruction.md).
+
+```
+TicketID(Jira Link):
+Type:
+Detail Description:
+Screenshot/Document(Optional):
+Affected Pages(Optional):
+Impacted Methods / Functions(Optional):
+```
+
+ADA/accessibility shortcut commands: [`.ai/behavior/ada-workflow.md`](.ai/behavior/ada-workflow.md).
+
+---
+
+## Architecture
+
+```
+Browser
+  └─▶ MVC Controller  (one ProcessRequest entry point per page)
+        └─▶ Service Layer       (business logic — stateless)
+              └─▶ Data Layer    (stored proc calls only — no inline SQL)
+                    └─▶ Oracle DB / UIC / External Services
+```
+
+Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md) (Sections 2 and 6).
+
+---
+
+## Non-Negotiable Rules
+
+| Rule | Where Defined |
+|---|---|
+| STOP/FLAG/PROCEED decision logic | [`behavior/decision-rules.md`](.ai/behavior/decision-rules.md) |
+| Coding standards (C#, Razor, CSS) | [`governance/coding-standards.md`](.ai/governance/coding-standards.md) |
+| Accessibility (WCAG 2.1 AA mandatory) | [`governance/wcag-fix-patterns.md`](.ai/governance/wcag-fix-patterns.md) |
+| Branching & push rules | [`governance/scm-workflow.md`](.ai/governance/scm-workflow.md) |
+| SQL production fix rules | [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) |
+| **DB schema & stored procedure reference (authoritative for ALL SQL/data work)** | [`data-dictionary/README.md`](.ai/data-dictionary/README.md) |
+| Security & compliance | [`governance/security-and-compliance.md`](.ai/governance/security-and-compliance.md) |
+| Project-specific ADA fixes | [`governance/custom-fixes.md`](.ai/governance/custom-fixes.md) |
+| Per-ticket-type risk posture | [`behavior/setting.md`](.ai/behavior/setting.md) |
+
+---
+
+## Critical Gotchas
+
+- **No inline SQL** — every DB call goes through a stored procedure.
+- **DB schema & stored procedures are authoritative via the data dictionary** — before preparing
+  any SQL script, doing data analysis, or changing code that touches the DB, consult
+  [`.ai/data-dictionary/`](.ai/data-dictionary/README.md) (`db-schema-dictionary.md` for every
+  table/column/type/description, `stored-procedures.md` for every existing procedure's full
+  script, `stored-procedure-dataflows.md` for a visual diagram of what each procedure touches).
+  Never invent a table, column, or stored procedure name — verify against these files
+  first, same priority tier as `.ai/knowledge-base.md`.
+- **No raw HTML inputs** — use `Html.c*` helpers exclusively in Razor forms.
+- **No hardcoded strings** — all labels/text come from `AppResources.lblXxx`.
+- **CSS theme files** — Module-specific pages touch the following theme folders: {{THEME_FOLDERS}} (confirmed via `BundleConfig.cs` bundle registrations); shared pages touch at minimum the base theme folder and the accessibility theme folder from that set. See [coding-standards.md](.ai/governance/coding-standards.md#3-css--theme-rules) for paths.
+- **Never push without explicit "PUSH BRANCH" or "PUSH" approval** from the user.
+- **Shared library changes** (`Utility.Standard` / `Utility.Core`) require team lead sign-off before implementation.
+- **Branch must be `Development`** before starting any Bug / Enhancement / Change Request work.
+- **NEVER post notes or comments to a Jira ticket** under any circumstances, for any ticket type, at any workflow step. This is an absolute prohibition — no automatic, implicit, or proactive Jira comments. The only exception is when the user explicitly says "add note in ticket" and provides the note text.
+- **`BaseViewModel`** — all ViewModels extend it. **`BaseController`** — all authenticated controllers extend it.
+
+---
+
+## Build
+
+Each module has its own solution. Build from the repo root:
+
+```powershell
+# Full workspace
+{{BUILD_COMMAND_FULL}}
+
+# Single module examples
+{{BUILD_COMMAND_MODULE}}
+```
+
+Build **must pass** before any push. If it fails, stop and report — do not push.
+
+---
+
+## Source Control Workflow
+
+Branch naming: {{BRANCH_PREFIX_TABLE}}  
+Full SCM rules: [`governance/scm-workflow.md`](.ai/governance/scm-workflow.md)  
+Commit message format: [`templates/commit-message.md`](.ai/templates/commit-message.md)  
+PR template: [`templates/pr-template.md`](.ai/templates/pr-template.md)
