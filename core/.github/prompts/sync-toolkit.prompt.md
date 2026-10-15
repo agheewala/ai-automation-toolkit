@@ -255,9 +255,14 @@ section.
 or modify anything under `.ai/.toolkit-sync-state/`** — neither `version.json` nor `baseline/`.
 Both are refreshed only by the 3-Way Merge section, `baseline/` first and `version.json` last, once
 Tier 2 handling is complete. Consequence: if this procedure is interrupted at any point,
-`version.json` still names the old version, so a re-run simply repeats update mode; every step
-below is idempotent (re-copying a missing file, re-overwriting a Tier 1 file and re-listing
-deprecated/unrecognized files are all safe to repeat). Never write "partial done" state anywhere.
+`version.json` still names the old version, so a re-run simply repeats update mode. Each step is
+safe to repeat: re-copying a missing file, re-overwriting a Tier 1 file and re-listing
+deprecated/unrecognized files are idempotent, and the staging directory is uniquely named per run
+(Step 2) so a leftover from an interrupted run never blocks a re-run. The one step whose effect
+cannot be re-derived from the project alone is a confirmed deletion in Step 4 (a re-run no longer
+finds the deleted file); that is why baseline cleanup is **not** driven by this run's in-memory
+list but is reconciled from disk state + the target manifest by the 3-Way Merge section (see the
+**Baseline reconciliation contract** in Step 7). Never write "partial done" state anywhere.
 
 Use the **Path mapping**, **Whole-`core/` rule** and **Sync state** definitions from Shared
 Conventions unchanged. Do not invent a different mapping for update mode.
@@ -289,12 +294,18 @@ Never check out, reset, stash or otherwise modify `<source>`'s working tree or b
    remote), continue with the tags already present locally and note it in the report.
 2. **Resolve the target.** Run `git -C <source> rev-parse --verify --quiet "<version>^{commit}"`.
    - **Resolves** → extract that version to a staging directory outside both repos (use the OS
-     temp folder, e.g. `<temp>/toolkit-<version>/`; create it fresh, and stop if it already
-     contains files). Extraction is byte-exact and **must go through a file, not a shell pipe**
+     temp folder) under a **uniquely-suffixed path**: `<stage>` =
+     `<temp>/toolkit-<version>-<yyyyMMddHHmmss>/` using the current UTC time (if the time is not
+     available to you, use a random 8-character suffix). Because the name is unique per run, it
+     can never collide with a leftover from an earlier interrupted run — **never reuse, empty or
+     delete a pre-existing `toolkit-*` directory**; if you notice older `toolkit-<version>*`
+     folders in `<temp>`, just mention in the report that they are leftovers the user may delete.
+     Create `<stage>` (it must not already exist; if it somehow does, pick a new suffix).
+     Extraction is byte-exact and **must go through a file, not a shell pipe**
      (PowerShell pipes corrupt binary tar streams):
-     `git -C <source> archive --format=tar -o <temp>/toolkit-<version>.tar <version>` then
-     `tar -xf <temp>/toolkit-<version>.tar -C <temp>/toolkit-<version>`. `<target>` is that
-     staging directory.
+     `git -C <source> archive --format=tar -o <stage>.tar <version>` then
+     `tar -xf <stage>.tar -C <stage>`. `<target>` is `<stage>`; the tar file is removed together
+     with the staging directory at the very end of the 3-Way Merge section.
    - **Does not resolve** → if `<version>` equals `<source>/VERSION` (the target is simply what
      the clone currently has checked out and was never tagged), set `<target>` = `<source>` and
      treat it as **read-only** — you only read from it. Otherwise stop and report that the
@@ -328,8 +339,8 @@ this project:
   run the relevant `generators/create-<x>.prompt.md` to produce it" (name the generator whose
   output it is, if one clearly owns it; otherwise say "no generator owns it — ask Copilot to
   install it from `<target>/core/<entry>` with the install-time placeholder substitutions").
-  A Tier 2 file is never meant to stay in template form. Add it to the **deferred-baseline list**
-  (Step 7), and do **not** write anything to `baseline/` now.
+  A Tier 2 file is never meant to stay in template form. Do **not** write anything to `baseline/`
+  now (see the **Baseline reconciliation contract** in Step 7).
 
 Never create a Tier 3 file.
 
@@ -345,8 +356,9 @@ that is also a Tier 2 file in the *installed* baseline (the user may have custom
   explicit confirmation for that file. Never delete without it, and never delete on a silence,
   a vague answer, or a default.** Files the user declines to remove are reported as "deprecated —
   kept at user request".
-- Add every file actually deleted to the deferred-baseline list (its baseline copy, if any, is
-  removed by the 3-Way Merge section, not here).
+- Do not touch `baseline/` here. A deleted file's baseline entry (if any) is removed by the
+  3-Way Merge section's reconciliation (Step 7), which derives it from the target manifest and
+  on-disk state, so it is cleaned up even if this run is interrupted right after the deletion.
 
 ### Step 5 — Unrecognized extra files (report only)
 
@@ -394,9 +406,26 @@ inputs it consumes, not state to persist:
 - the resolved target version and `<target>` path (and whether `<target>` is a staging directory
   that the merge section must remove at the very end — staging directories only; never `<source>`);
 - the target manifest's Tier 2 file list and Tier 3 patterns;
-- the **deferred-baseline list**: Tier 2 files newly flagged in Step 3 (need a baseline entry
-  added) and files deleted in Step 4 (need their baseline entry removed);
-- the interim summary and warnings above, to be merged into the final report.
+- the interim summary and warnings above, to be merged into the final report;
+- optionally, as a convenience only, the files deleted in Step 4 and the new Tier 2 files flagged
+  in Step 3. This list is **informational (for the report) and non-authoritative**: the merge
+  section must not depend on it, because it is lost if the run is interrupted.
+
+**Baseline reconciliation contract (binding on the 3-Way Merge section).** Before writing
+`version.json`, the 3-Way Merge section must reconcile `.ai/.toolkit-sync-state/baseline/`
+against the **target manifest** directly, independent of any in-memory list from this run, so the
+result is re-derivable from disk + `<target>` on every run:
+
+1. **Remove** every `baseline/` entry whose manifest path is not a Tier 2 file of the target
+   manifest — in particular any path listed in the target's `deprecated` array or absent from the
+   target manifest — whether or not the project's copy was deleted in Step 4 (this also cleans up
+   entries orphaned by an earlier interrupted run, and entries for deprecated files the user
+   chose to keep).
+2. **Add** (from `<target>/core/<manifest-path>`, placeholders unfilled, `.template` suffix kept)
+   every Tier 2 manifest entry that has no `baseline/` entry, and refresh every other Tier 2
+   entry once its merge is resolved, per the 3-Way Merge rules.
+3. End state: the set of `baseline/` entries equals exactly the target manifest's Tier 2 set.
+   Write `baseline/` first and `version.json` last, as the State-safety rule requires.
 
 <!-- ============================================================================
      END OF UPDATE MODE. The 3-Way Merge section below picks up at the Step 7 hand-off.
