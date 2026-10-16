@@ -35,7 +35,7 @@ Before implementing any change, always read:
 
 {{DOMAIN_VOCABULARY}}
 
-This section is filled in by `generators/create-domain-agent.prompt.md` from the target
+This section is filled in by the `create-domain-agent` generator from the target
 project's own `knowledge-base.md` — do not hand-author business rules here. When populated,
 it must cover the project's domain terms/entities and their primary tables, the lifecycle(s)
 that govern core business entities, the enumerated transaction/operation types the system
@@ -52,7 +52,7 @@ assume a single currency or jurisdiction if the project supports more than one).
 
 {{ARCHITECTURAL_BOUNDARIES}}
 
-This section is filled in by `generators/create-domain-agent.prompt.md` from the target
+This section is filled in by the `create-domain-agent` generator from the target
 project's own `knowledge-base.md` and `coding-standards.md` — do not hand-author architecture
 facts here. When populated, it must cover the project's layering rules (which layer may call
 which), the module/solution boundaries that must not be crossed without justification, the

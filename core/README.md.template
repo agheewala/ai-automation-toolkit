@@ -81,17 +81,29 @@ README.md                     This guide
 ├── behavior/                 STOP/FLAG/PROCEED decision rules, per-ticket-type risk posture, ADA workflow
 ├── templates/                Commit-message and pull-request templates
 ├── data-dictionary/          DB schema and stored-procedure reference (only if generated for this project)
-└── .toolkit-sync-state/      Bookkeeping for /sync-toolkit — do not edit by hand
+└── .toolkit-sync-state/      Bookkeeping for /sync-toolkit (hidden folder) — do not edit or delete
 .github/
 ├── copilot-instructions.md   Always-on guardrails Copilot reads for every request
 ├── agents/                   Ticket Processor (ticket-to-PR) and Domain Engineer (implementation/review)
 ├── prompts/                  Slash commands: fix-ticket, auto-fix, implement, pr-review, sync-toolkit
 └── skills/                   Reusable implementation patterns (patterns/SKILL.md)
-generators/                   Re-runnable generators that (re)build project-specific config files
+data-dictionary-tooling/      SQL export queries used to build .ai/data-dictionary/ (may not apply to your database engine)
+stacks/                       Stack-specific hints from the toolkit (only if a stack overlay was chosen)
 ```
 
 `.ai/knowledge-base.md` and `.ai/data-dictionary/` belong to this project — they are generated from
 its own code and documents and are never changed by toolkit updates.
+
+**What is `.ai/.toolkit-sync-state/`?** It is the toolkit's bookkeeping folder (hidden, because its
+name starts with a dot).
+`/sync-toolkit` uses it to remember which toolkit version is installed (`version.json`) and keeps a
+pristine copy of the toolkit's original files (`baseline/`) so that later updates can merge
+changes without overwriting your customizations. Deleting or hand-editing it makes the next
+update treat this project as not installed or corrupt. Commit it with the rest of `.ai/`.
+
+The toolkit's generators (the commands that build `.ai/knowledge-base.md`, the governance files,
+and so on) are **not** installed in this project; they are read straight from your toolkit
+clone when needed — see "Re-running a single generator" below.
 
 ---
 
@@ -115,6 +127,23 @@ can be pulled into this project later with one command in Copilot chat (Agent mo
   conflicts are shown to you rather than overwritten. Project-owned files (`.ai/knowledge-base.md`,
   `.ai/data-dictionary/`) are never touched.
 - The command never commits or pushes. Review the reported changes and commit them yourself.
+
+### Re-running a single generator
+
+To rebuild one generated file set later — for example the data dictionary after a database schema
+change — without a full update, use generator mode (Agent mode):
+
+```
+/sync-toolkit --source <path-to-toolkit-clone> --generator <name>
+```
+
+`<name>` is a generator in the toolkit clone's `generators/` folder, for example
+`create-data-dictionary`, `create-knowledge-base`, `create-coding-standards`,
+`create-build-settings`, `create-scm-workflow`, `create-implementation-patterns` or
+`create-domain-agent`. The generator is read directly from the toolkit clone (nothing is copied into
+this project), it reuses what this project already records, and it does not touch
+`.ai/.toolkit-sync-state/`. This requires the project to be installed already. It never commits or
+pushes.
 
 ---
 
@@ -145,7 +174,8 @@ servers there if you run the workflow from the CLI. See [`AGENTS.md`](AGENTS.md)
 - **The build fails** — the workflow will not push. Fix the build (`{{BUILD_COMMAND_FULL}}`) and
   re-run; do not bypass the check.
 - **Output ignores project rules or seems out of date** — confirm `.ai/knowledge-base.md` reflects
-  the current code, and re-run the relevant generator from `generators/` if a config file is stale.
+  the current code, and re-run the relevant generator with
+  `/sync-toolkit --source <path-to-toolkit-clone> --generator <name>` if a config file is stale.
 
 ---
 

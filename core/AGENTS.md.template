@@ -270,7 +270,7 @@ Full architecture & module map: [`.ai/knowledge-base.md`](.ai/knowledge-base.md)
 | Accessibility (WCAG 2.1 AA mandatory) | [`governance/wcag-fix-patterns.md`](.ai/governance/wcag-fix-patterns.md) |
 | Branching & push rules | [`governance/scm-workflow.md`](.ai/governance/scm-workflow.md) |
 | SQL production fix rules | [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) |
-| **DB schema & stored procedure reference (authoritative for ALL SQL/data work, if present)** | [`data-dictionary/README.md`](.ai/data-dictionary/README.md) — only exists once `generators/create-data-dictionary.prompt.md` has run; for non-SQL-Server projects it may not exist yet, see [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) for the current engine's data-dictionary status |
+| **DB schema & stored procedure reference (authoritative for ALL SQL/data work, if present)** | [`data-dictionary/README.md`](.ai/data-dictionary/README.md) — only exists once the `create-data-dictionary` generator has run; for non-SQL-Server projects it may not exist yet, see [`governance/SQL_Guidelines.md`](.ai/governance/SQL_Guidelines.md) for the current engine's data-dictionary status |
 | Security & compliance | [`governance/security-and-compliance.md`](.ai/governance/security-and-compliance.md) |
 | Project-specific ADA fixes | [`governance/custom-fixes.md`](.ai/governance/custom-fixes.md) |
 | Per-ticket-type risk posture | [`behavior/setting.md`](.ai/behavior/setting.md) |

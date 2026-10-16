@@ -4,8 +4,9 @@ description: Install or update the AI Automation Toolkit in this project.
 
 # /sync-toolkit
 
-Installs the AI Automation Toolkit into this project (**install mode**) or brings an existing
-installation up to a newer toolkit version (**update mode**).
+Installs the AI Automation Toolkit into this project (**install mode**), brings an existing
+installation up to a newer toolkit version (**update mode**), or re-runs a single generator on an
+already-installed project (**generator mode**, `--generator <name>`).
 
 > **No scripts.** Every action in this prompt is performed by you, the agent, through your own
 > tool calls (`read_file`, `create_file`, file edits, and `run_in_terminal` for git and plain
@@ -30,6 +31,12 @@ Parse these from the user's invocation text:
   clone's current `VERSION` file content if omitted. In install mode this argument is ignored; if
   the user supplied it, tell them so, and remind them that install uses whatever the source clone
   currently has checked out.
+- `--generator <name>` (optional, **standalone generator mode**): the name of one toolkit generator
+  to re-run on this already-installed project, with or without the `.prompt.md` suffix (for example
+  `create-data-dictionary`). When present, run **Generator Mode** below and nothing else: it is
+  mutually exclusive with `--mode` and `--version` (if the user supplies either alongside
+  `--generator`, say so and ask which they mean). Generators are never copied into this project;
+  they are always read from `<source>/generators/`.
 - `--mode install|update` (optional): if omitted, auto-detect — `install` if
   `.ai/.toolkit-sync-state/version.json` does not exist in this project, `update` otherwise.
   If the user explicitly passes `--mode install` but `version.json` already exists, stop and warn
@@ -40,22 +47,28 @@ Parse these from the user's invocation text:
 After parsing, verify `<source>` contains `manifest.json`, `VERSION`, `core/`, `generators/`,
 `stacks/`, and `data-dictionary-tooling/`. If any is missing, stop and report which one.
 
-Then branch on the resolved mode: run **Install Mode** or **Update Mode** below.
+Then branch on the resolved mode: run **Generator Mode** if `--generator` was given, otherwise
+**Install Mode** or **Update Mode** below.
 
 ---
 
 ## Shared Conventions
 
-These definitions are used by both modes. Do not redefine them in a mode section.
+These definitions are used by all modes. Do not redefine them in a mode section.
 
 **Path mapping.** `manifest.json` lists files under two different roots:
 
 | Manifest entry | Source location | Location in this project |
 |---|---|---|
 | Tier 2 entries (e.g. `.github/agents/ticket-processor.agent.md`, `AGENTS.md.template`, `README.md.template`) | `<source>/core/<entry>` | `<entry>`, with a trailing `.template` suffix stripped (`AGENTS.md.template` → `AGENTS.md`, `README.md.template` → `README.md`, `.github/copilot-instructions.md.template` → `.github/copilot-instructions.md`) |
-| Tier 1 entries starting `generators/`, `data-dictionary-tooling/`, or `stacks/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
+| Tier 1 entries starting `data-dictionary-tooling/` or `stacks/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
 | Tier 1 entries found under `core/` (today: `.github/prompts/sync-toolkit.prompt.md`) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
 | Tier 3 patterns (`.ai/knowledge-base.md`, `.ai/data-dictionary/**`) | never copied | produced by generators; **never touched by sync** |
+
+**Generators are source-only.** `<source>/generators/` is never copied into this project and has no
+manifest entries; there is no `generators/` folder in an installed project. Install Mode (Step 6)
+and Generator Mode read a generator directly from `<source>/generators/<name>.prompt.md` and
+execute it against this project.
 
 An entry's source location is `<source>/<entry>` if that file exists, otherwise
 `<source>/core/<entry>`. If neither exists, stop and report the manifest/source mismatch.
@@ -76,14 +89,14 @@ and list it in your final report under "Files not classified in manifest.json".
 
 <!-- ============================================================================
      SECTION: INSTALL MODE
-     Update Mode and the Tier 2 Three-Way Merge are separate sections below this one;
+     Update Mode, the Tier 2 Three-Way Merge and Generator Mode are separate sections below this one;
      do not add their logic inside this section.
      ============================================================================ -->
 
 ## Install Mode
 
 Follow these steps in order. If any step fails, stop and report — do **not** write
-`.ai/.toolkit-sync-state/version.json` unless every step through Step 8 completed (its absence is
+`.ai/.toolkit-sync-state/version.json` unless every step through Step 7 completed (its absence is
 what makes a re-run detect install mode again). `version.json` is the very last file written, as
 the atomic "install is done" marker.
 
@@ -127,11 +140,11 @@ Build the full list of destination files using the **Path mapping** in Shared Co
    `data-dictionary-tooling/<same relative path>`. This copy is **unconditional**, regardless of
    the user's database engine: the `*.sqlserver.sql` export queries are copied even if the project
    uses a different engine (the DB-engine question is asked later, by the data-dictionary
-   generator, so install cannot know it yet). Step 9 tells the user these files may not apply.
+   generator, so install cannot know it yet). Step 8 tells the user these files may not apply.
 4. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
    `{{PROJECT_SPECIFIC_FIXES}}` and `{{STACK_CHECKLIST}}` (wcag-fix-patterns.md only) substitutions
-   in Step 5. Those substitutions never apply to `.github/prompts/sync-toolkit.prompt.md` or to
-   anything under `generators/` (see Step 5).
+   in Step 5. Those substitutions never apply to `.github/prompts/sync-toolkit.prompt.md` (see
+   Step 5). Generators are not part of this plan at all: they stay in `<source>/generators/`.
 
 For each planned destination, check whether it already exists in this project. If it does,
 compare it with the content you would write (including the Step 5 substitutions). Identical →
@@ -176,10 +189,10 @@ exceptions are `{{MODULE_LIST}}`, `{{SHARED_LIBS}}` and `{{STACK_SUMMARY}}`, whi
 Step 6a (in every file that contains them).
 
 **Never substitute inside instructional/meta files.** Do not perform any Step 5 (or Step 6a)
-substitution inside `.github/prompts/sync-toolkit.prompt.md` (this file) or inside any file under
-`generators/`. Those files mention these tokens by name as part of their own instructions — they
-are not filled content, and substituting there would corrupt the instructions (and, for this file,
-make it differ from the toolkit's Tier 1 copy on every update).
+substitution inside `.github/prompts/sync-toolkit.prompt.md` (this file) or inside any generator
+file under `<source>/generators/`. Those files mention these tokens by name as part of their own
+instructions — they are not filled content, and substituting there would corrupt the instructions
+(and, for this file, make it differ from the toolkit's Tier 1 copy on every update).
 
 **Duplicate occurrences in one file.** If a token appears more than once in the same file — for
 example once as the real placeholder and once inside an explanatory note — fill the real
@@ -224,7 +237,8 @@ Rules for this order:
 - #4 and #5 may run at any point after #1; the table order is the recommended one.
 - #7 is last because it pauses for user action (database engine question, CSV exports). If the user
   wants to defer it, skip it, continue to Step 7, and record "data dictionary: not generated" in
-  the report with the instruction to run `create-data-dictionary.prompt.md` later. If the user's
+  the report with the instruction to run it later via
+  `/sync-toolkit --source <path> --generator create-data-dictionary`. If the user's
   database is not SQL Server, that generator stops itself with a documented known-gap message —
   relay that message; this is not an install failure.
 - If any of #1–#6 stops or fails, stop the whole install and report which generator failed and why.
@@ -238,20 +252,7 @@ recorded for them — appears in `AGENTS.md` and `.ai/behavior/decision-rules.md
 `{{STACK_SUMMARY}}` (one line: language, framework, UI, database). Use "not found in knowledge
 base" rather than inventing content when it does not say.
 
-### Step 7 — Make the generators available for later re-runs
-
-Copy every `<source>/generators/*.prompt.md` to `generators/` in this project (same relative path,
-per the manifest's Tier 1 entries). **Collision check first:** if this project already has a
-`generators/` folder containing files that are NOT from this toolkit (i.e. not named
-`create-*.prompt.md` matching a toolkit generator — for example a Yeoman/plop generator setup),
-warn the user and ask before copying; never silently merge into or overwrite it. If the user
-declines, skip this step and record "generators not copied (folder collision)" in the report.
-They are deliberately **not** placed in `.github/prompts/`:
-the generators self-delete from that folder after running, and must not be exposed as live slash
-commands in the project. To re-run one later, tell Copilot to execute the instructions in
-`generators/<name>.prompt.md` and skip its self-delete step.
-
-### Step 8 — Write the sync state
+### Step 7 — Write the sync state
 
 Order matters: the baseline is written first and `version.json` last, so that `version.json`
 existing always means the baseline is complete.
@@ -267,20 +268,22 @@ existing always means the baseline is complete.
    ```
    Use the current date/time available to you; if you cannot determine it, ask the user.
 
-### Step 9 — Stop and report
+### Step 8 — Stop and report
 
 Do **not** run `git add`, `git commit` or `git push`. Print a summary containing:
 
 - Toolkit version and stack installed.
-- Every file created, grouped as: core files, stack overlay, data-dictionary tooling, generators,
-  sync state (`version.json` + baseline file count).
+- Every file created, grouped as: core files, stack overlay, data-dictionary tooling,
+  sync state (`version.json` + baseline file count). Generators are not copied into the project, so
+  there is no generators group.
 - Files skipped or saved as `.toolkit-new` in Step 4.
-- Each generator that ran and its outcome, plus any skipped (e.g. data dictionary).
+- Each generator that ran and its outcome, plus any skipped (e.g. data dictionary). Tell the user
+  that any single generator can be re-run later with `/sync-toolkit --source <path> --generator <name>`
+  (see Generator Mode).
 - Placeholders still pending: search the project's files only for tokens matching this toolkit's
   `{{UPPER_SNAKE_CASE}}` convention (regex `\{\{[A-Z][A-Z0-9_]*\}\}`) and list file + token. Do
   NOT flag other `{{...}}` syntax (Handlebars, Jinja, Angular, etc.) — that is the project's own.
-  **Exclude from this scan**: the toolkit's own generator files (`generators/create-*.prompt.md`;
-  do not exclude other files in a project's `generators/` folder), `.github/prompts/sync-toolkit.prompt.md`,
+  **Exclude from this scan**: `.github/prompts/sync-toolkit.prompt.md`,
   `.ai/.toolkit-sync-state/baseline/`, and any `*.toolkit-new` files — they contain tokens by
   design (instructional text, unfilled baseline templates, or unmerged toolkit copies), so listing
   them is noise. Also ignore a token that appears only inside an explanatory note about itself
@@ -292,9 +295,8 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
 - **Completeness check.** When confirming that every Tier 1 manifest entry exists in the project,
   entries under `stacks/` are expected to be **absent** when the chosen stack is `none` or when
   they belong to a stack other than the chosen overlay (install copies only the chosen stack). That
-  is correct behavior; do not report it as missing. Likewise, the `generators/` entries being
-  absent ("generators not copied (folder collision)") is expected and acceptable when Step 7's
-  collision check led the user to decline the copy; do not flag it as a bug.
+  is correct behavior; do not report it as missing. Generators have no manifest entries and are
+  never expected in the project, so there is nothing to check for them.
 - **Database tooling note.** `data-dictionary-tooling/*.sqlserver.sql` is copied unconditionally
   (Step 3), so if the project's database is not SQL Server (or the data dictionary was deferred),
   say these files were copied but may not apply, and may be deleted.
@@ -390,7 +392,9 @@ Never check out, reset, stash or otherwise modify `<source>`'s working tree or b
    Build the **target file set** the same way Install Step 3 builds its plan: every file under
    `<target>/core/` (destination = `core/`-stripped path with a trailing `.template` removed),
    every file under `<target>/stacks/<installed-stack>/`, and every file under
-   `<target>/data-dictionary-tooling/` and `<target>/generators/`. Each file's tier comes from the
+   `<target>/data-dictionary-tooling/`. Generators under `<target>/generators/` are **not** part of
+   the target file set: they are source-only and never installed into the project. Each file's
+   tier comes from the
    manifest; a file in the set that the manifest does not list is **unclassified** (report it under
    "Files not classified in manifest.json", exactly as Install does, and do not modify it).
 
@@ -401,7 +405,8 @@ this project:
 
 - **Tier 1:** copy it in byte-for-byte from `<target>`, creating folders as needed.
 - **Tier 2:** do **not** copy the bare template. Record it as "new Tier 2 file — not copied;
-  run the relevant `generators/create-<x>.prompt.md` to produce it" (name the generator whose
+  run the relevant generator to produce it (`/sync-toolkit --source <path> --generator create-<x>`)"
+  (name the generator whose
   output it is, if one clearly owns it; otherwise say "no generator owns it — ask Copilot to
   install it from `<target>/core/<entry>` with the install-time placeholder substitutions").
   A Tier 2 file is never meant to stay in template form. Do **not** write anything to `baseline/`
@@ -413,7 +418,7 @@ Never create a Tier 3 file.
 
 For every entry in the target manifest's `deprecated` array, find it in this project. An entry
 containing a `/` is a project-relative path; a bare filename matches any file of that name under
-`.ai/`, `.github/agents|prompts|skills/` or `generators/`. List every match, and mark each one
+`.ai/` or `.github/agents|prompts|skills/`. List every match, and mark each one
 that is also a Tier 2 file in the *installed* baseline (the user may have customized it).
 
 - If nothing matches, say so and move on.
@@ -421,6 +426,11 @@ that is also a Tier 2 file in the *installed* baseline (the user may have custom
   explicit confirmation for that file. Never delete without it, and never delete on a silence,
   a vague answer, or a default.** Files the user declines to remove are reported as "deprecated —
   kept at user request".
+- **Legacy `generators/` copies.** Toolkit versions before generators became source-only copied
+  `generators/create-*.prompt.md` into the project; the target manifest lists those paths in
+  `deprecated`, so they are handled by the rules above (explicit per-file confirmation). If the
+  project's `generators/` folder is left empty after confirmed deletions, tell the user it can be
+  removed; remove it only on their explicit confirmation.
 - Do not touch `baseline/` here. A deleted file's baseline entry (if any) is removed by the
   3-Way Merge section's reconciliation (Step 7), which derives it from the target manifest and
   on-disk state, so it is cleaned up even if this run is interrupted right after the deletion.
@@ -444,7 +454,7 @@ are "unchanged").
 
 - If a target Tier 1 file contains a `{{...}}` token, copy it verbatim anyway and list file and
   token as a toolkit bug under pending placeholders; do not fill it in. Exempt from this listing:
-  `.github/prompts/sync-toolkit.prompt.md` and everything under `generators/`, which mention tokens
+  `.github/prompts/sync-toolkit.prompt.md`, which mentions tokens
   by name as instructional text by design.
 - Handle `.github/prompts/sync-toolkit.prompt.md` (this very file) **last** among the Tier 1
   files, and tell the user that the updated prompt takes effect on the next invocation; this run
@@ -719,7 +729,7 @@ does not need user confirmation.
 2. **Add / refresh.** For every Tier 2 entry whose Step 2/4 baseline decision is *add* or
    *refresh*, copy `<target>/core/<manifest-path>` to `baseline/<manifest-path>` byte-for-byte
    (`Copy-Item -LiteralPath … -Force`, creating folders as needed). These are the raw templates:
-   placeholders **unfilled** and the `.template` suffix **kept** (matching Install Step 8 — the
+   placeholders **unfilled** and the `.template` suffix **kept** (matching Install Step 7 — the
    baseline never holds this project's filled-in content or the stripped project name). Entries
    marked *keep as is* are left exactly as they are, but **only if they already exist**; a
    missing entry is always added.
@@ -775,5 +785,76 @@ unrecognized, Tier 1 overwritten, warnings) with:
 Then **stop**. Do not run `git add`, `git commit` or `git push`.
 
 <!-- ============================================================================
-     END OF FILE. Install Mode + Update Mode + 3-Way Merge together are the complete /sync-toolkit.
+     SECTION: GENERATOR MODE  (`--generator <name>`, standalone re-run of one generator)
+     ============================================================================ -->
+
+## Generator Mode (`--generator <name>`)
+
+Re-runs **one** toolkit generator on an already-installed project, without a full install or
+update. Typical uses: regenerate the data dictionary after a schema change, or rebuild the
+knowledge base after a large refactor. Generators are never installed into the project, so this
+mode always reads the generator from `<source>/generators/`.
+
+Use the **Path mapping** and **Sync state** definitions from Shared Conventions unchanged.
+
+### Step 1 — Preconditions
+
+1. `.ai/.toolkit-sync-state/version.json` must exist in this project. If it does not, stop and tell
+   the user the project is not installed yet: run `/sync-toolkit --source <path>` (install mode)
+   first. Do not run the generator.
+2. Resolve `<name>`: strip a trailing `.prompt.md` if present, then require that
+   `<source>/generators/<name>.prompt.md` exists. If it does not, stop and list the available
+   names (the `create-*.prompt.md` files under `<source>/generators/`, without suffix) — do not
+   guess a close match.
+3. If `<source>/VERSION` (trimmed) differs from the installed `toolkitVersion` in `version.json`,
+   warn the user that the generator comes from a different toolkit version than the one installed
+   (suggest running update mode first) and continue only on their confirmation. This is a warning
+   only; this mode never changes the installed version.
+4. Check the generator's prerequisite from the **Step 6 table in Install Mode** (for example every
+   generator except `create-knowledge-base` needs `.ai/knowledge-base.md`; `create-build-settings`
+   also needs the output of `create-coding-standards`; `create-domain-agent` reads
+   `.ai/governance/coding-standards.md`). If a prerequisite output is missing, stop and tell the
+   user which generator to run first.
+
+### Step 2 — Run the generator
+
+Read `<source>/generators/<name>.prompt.md` and execute its instructions directly against this
+project — never copy it into this project first.
+
+- **Reuse known project facts; do not re-ask.** Where the generator asks for `PROJECT_NAME`,
+  `SYSTEM_DESCRIPTION`, `PVD_PATHS`, `CODE_ROOT` or similar, take the value from what this project
+  already records: `PROJECT_NAME` from `AGENTS.md` (the filled-in project name) and the other
+  values from `.ai/knowledge-base.md` where it states them. Ask the user only for a value that is
+  not recorded anywhere, and for generator-specific questions the generator itself raises (for
+  example the database engine for `create-data-dictionary`, or the remote URL and branch prefixes
+  for `create-scm-workflow`).
+- **Skip the generator's own self-delete step** ("delete this file from `.github/prompts/`"):
+  there is nothing to delete in this project, and you must never delete or modify anything inside
+  `<source>`.
+- **Existing output.** A re-run normally regenerates files that already exist (that is the point).
+  Before overwriting a generated file that the user may have hand-edited since the last run, tell
+  them which files will be rewritten and get their confirmation; honour any backup/overwrite
+  handling the generator already defines.
+- **Placeholders.** The install-time substitutions (Install Steps 5 and 6a) are not repeated here;
+  the generator fills only what it owns. Tokens already filled in the project stay filled.
+- If the generator stops or fails (for example the documented known-gap message from
+  `create-data-dictionary` for a non-SQL-Server database), stop and relay its message; this is not
+  an error in the project.
+
+### Step 3 — Do not touch the sync state
+
+This mode **never writes, modifies or deletes anything under `.ai/.toolkit-sync-state/`** —
+`version.json` and `baseline/` stay exactly as they were. Re-running one generator is not a toolkit
+version change, and the files it produces are project-owned (Tier 3) or placeholder fills inside
+Tier 2 files that the next update merges normally.
+
+### Step 4 — Report and stop
+
+Do **not** run `git add`, `git commit` or `git push`. Report: the generator that ran, every file it
+created or changed (and any it skipped or left unchanged), anything it left pending or could not
+do, and a closing instruction to review the changes and commit them in this repo yourself — this
+command made no commits.
+
+<!-- ============================================================================
+     END OF FILE. Install Mode + Update Mode + 3-Way Merge + Generator Mode together are the complete /sync-toolkit.
      ============================================================================ -->

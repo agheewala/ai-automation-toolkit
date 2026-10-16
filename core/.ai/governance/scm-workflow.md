@@ -29,7 +29,7 @@
 | `<production-release branch>` | Production releases | **Never commit directly** — merged from `{{BASE_BRANCHES}}` by release manager only |
 
 > The base-branch name shown in this table is populated per-project by
-> `generators/create-scm-workflow.prompt.md` with the name of the branch that all work starts from
+> the `create-scm-workflow` generator with the name of the branch that all work starts from
 > and all PRs target (the same name is used inline everywhere in this file and in the other
 > workflow files). The `<production-release branch>` placeholder in the second
 > row (and in the prohibitions below) is replaced by the same generator with the project's real
@@ -44,7 +44,7 @@
 
 {{BRANCH_PREFIX_TABLE}}
 
-> The block above is populated per-project by `generators/create-scm-workflow.prompt.md` with this
+> The block above is populated per-project by the `create-scm-workflow` generator with this
 > project's actual ticket-type-to-branch-prefix mapping (placeholder values, example branch names,
 > and the Type Reference table) — do not hardcode any single project's prefixes
 > (e.g. `BUG`/`ER`/`CR`) in this `core/` file.

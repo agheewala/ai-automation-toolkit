@@ -3,6 +3,17 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+### Changed
+- `generators/` is no longer installed into projects (it confused teams as an unexplained top-level
+  folder). Install Mode drops the old Step 7 (copy generators; steps renumbered 7–8), the seven
+  `generators/create-*.prompt.md` entries leave manifest Tier 1 and are listed under `deprecated`
+  so older installs can clean up their copies on update (with per-file confirmation).
+### Added
+- `/sync-toolkit --source <path> --generator <name>` standalone mode: re-run one generator, read
+  directly from the toolkit clone, on an already-installed project. Does not touch
+  `.ai/.toolkit-sync-state/`.
+
 ## [1.1.1] - 2026-10-16
 ### Fixed
 - Second-pilot validation pass (fresh Node.js throwaway project) found 4 residual issues missed

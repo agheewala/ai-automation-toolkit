@@ -22,10 +22,20 @@ project regardless of language/stack.
 /sync-toolkit --source "<path-to-this-clone>" --version v1.x.x
 ```
 
+## Re-running a single generator
+
+Generators are never copied into a project; they are read from this clone. To re-run one later on an
+already-installed project (for example after a schema change):
+
+```
+/sync-toolkit --source "<path-to-this-clone>" --generator create-data-dictionary
+```
+
 ## Repo layout
 
 - `core/` — generic agents, prompts, governance/behavior templates. Tiered per `manifest.json`.
-- `generators/` — `create-*.prompt.md` commands that tailor `core/` output to a specific project.
+- `generators/` — `create-*.prompt.md` commands that tailor `core/` output to a specific project
+  (source-only: read from this clone during install and `--generator` re-runs, never installed).
 - `stacks/` — per-language-stack deltas layered on top of `core/` during install.
 - `data-dictionary-tooling/` — DB export SQL (SQL Server only in v1) + the
   `generators/create-data-dictionary.prompt.md` command that turns exported CSVs into markdown.

@@ -9,7 +9,7 @@
 
 {{BUILD_SCOPE_RULES}}
 
-> Populated per-project by `generators/create-build-settings.prompt.md` from the target repo's
+> Populated per-project by the `create-build-settings` generator from the target repo's
 > own solution/project files, build scripts, and module boundaries. Covers: project
 > identification (name, framework, build tool, configuration, platform), solution file
 > inventory (combined vs. module-specific), build commands (full workspace vs. single module),

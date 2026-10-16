@@ -253,7 +253,7 @@ top of the file:
 
 ```
 > **Primary database for this project:** `{{DB_NAME}}` (populated per-project by
-> `generators/create-knowledge-base.prompt.md` / the data-dictionary export — never hardcode a
+> the `create-knowledge-base` generator / the data-dictionary export — never hardcode a
 > specific project's database name in this `core/` file).
 ```
 

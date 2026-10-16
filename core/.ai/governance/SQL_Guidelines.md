@@ -7,7 +7,7 @@ This document defines the mandatory rules for validating SQL scripts used for da
 > data-dictionary generator is never run, or set to N/A if it is run and confirms no database exists).
 
 > **Primary database for this project:** `{{DB_NAME}}` (populated per-project by
-> `generators/create-knowledge-base.prompt.md` / the data-dictionary export — never hardcode a
+> the `create-knowledge-base` generator / the data-dictionary export — never hardcode a
 > specific project's database name in this `core/` file).
 
 > **Dialect note:** Examples below show SQL Server and Oracle syntax side by side. Use whichever
@@ -24,7 +24,7 @@ This document defines the mandatory rules for validating SQL scripts used for da
 ## 0. Authoritative Data Source (MANDATORY — Consult First)
 
 > **Data-dictionary status for this project's engine.** `.ai/data-dictionary/` only exists once
-> `generators/create-data-dictionary.prompt.md` has been run, and that generator currently supports
+> the `create-data-dictionary` generator has been run, and that generator currently supports
 > **SQL Server only** (Oracle/other-engine export queries are a known gap in this toolkit version).
 > Check whether `.ai/data-dictionary/README.md` exists:
 > - **Present** → follow the rules below.

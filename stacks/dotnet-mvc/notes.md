@@ -1,7 +1,7 @@
 # Stack Overlay: .NET Framework MVC (dotnet-mvc)
 
-Hints for `generators/create-build-settings.prompt.md` and
-`generators/create-coding-standards.prompt.md` when the target `CODE_ROOT` auto-detection finds:
+Hints for the `create-build-settings` and
+the `create-coding-standards` generators when the target `CODE_ROOT` auto-detection finds:
 - `.sln` + `.csproj` files targeting `net48`/`net45`/older (not SDK-style `net6.0`+)
 - Razor `.cshtml` views
 - `packages.config` (not `PackageReference`) NuGet style

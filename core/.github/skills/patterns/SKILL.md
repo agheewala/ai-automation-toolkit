@@ -8,5 +8,5 @@ project's own architecture and conventions.
 
 {{CODE_PATTERN_EXAMPLES}}
 
-> Populated per-project by `generators/create-implementation-patterns.prompt.md` from the
+> Populated per-project by the `create-implementation-patterns` generator from the
 > target codebase's own verified patterns — do not hand-author examples here.

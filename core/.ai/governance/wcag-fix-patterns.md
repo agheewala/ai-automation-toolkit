@@ -33,7 +33,7 @@ These rules are **non-negotiable** for every UI change in this project.
 > wait for a generator to fill it: the project owner replaces this placeholder manually with the
 > stack's own mandatory accessibility rules. (A separate `{{STACK_CHECKLIST}}` in
 > `.ai/behavior/setting.md`'s Pre-Push Checklist *is* generator-owned — see
-> `generators/create-build-settings.prompt.md` — but this occurrence is not.) A good starting point
+> the `create-build-settings` generator — but this occurrence is not.) A good starting point
 > is `stacks/<stack>/notes.md`, if the toolkit ships one for the project's stack. The content should cover the stack's
 > own markup/templating-helper patterns (e.g. the project's own label/form-field helper,
 > validation-summary and hidden-field conventions, screen-reader-announcement

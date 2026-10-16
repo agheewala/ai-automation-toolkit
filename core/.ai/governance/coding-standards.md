@@ -7,7 +7,7 @@
 
 {{CODING_STANDARDS_BODY}}
 
-> `{{CODING_STANDARDS_BODY}}` is populated per-project by `generators/create-coding-standards.prompt.md`
+> `{{CODING_STANDARDS_BODY}}` is populated per-project by the `create-coding-standards` generator
 > from the target repo's own source code (actual class names, file patterns, framework helpers,
 > and theme/CSS system in use). The generated content is stack-specific (e.g. .NET/Razor, Java/JSP,
 > Node/React, etc.) and MUST NOT be hardcoded in this `core/` file. However, every generated
