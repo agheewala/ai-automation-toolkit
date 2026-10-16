@@ -52,7 +52,7 @@ These definitions are used by both modes. Do not redefine them in a mode section
 
 | Manifest entry | Source location | Location in this project |
 |---|---|---|
-| Tier 2 entries (e.g. `.github/agents/ticket-processor.agent.md`, `AGENTS.md.template`) | `<source>/core/<entry>` | `<entry>`, with a trailing `.template` suffix stripped (`AGENTS.md.template` → `AGENTS.md`, `.github/copilot-instructions.md.template` → `.github/copilot-instructions.md`) |
+| Tier 2 entries (e.g. `.github/agents/ticket-processor.agent.md`, `AGENTS.md.template`, `README.md.template`) | `<source>/core/<entry>` | `<entry>`, with a trailing `.template` suffix stripped (`AGENTS.md.template` → `AGENTS.md`, `README.md.template` → `README.md`, `.github/copilot-instructions.md.template` → `.github/copilot-instructions.md`) |
 | Tier 1 entries starting `generators/`, `data-dictionary-tooling/`, or `stacks/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
 | Tier 1 entries found under `core/` (today: `.github/prompts/sync-toolkit.prompt.md`) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
 | Tier 3 patterns (`.ai/knowledge-base.md`, `.ai/data-dictionary/**`) | never copied | produced by generators; **never touched by sync** |
@@ -160,7 +160,7 @@ project's copies (never in `<source>`, and never in the baseline):
 - `{{REQUIRED_MODEL_LIST}}` → the model value from Step 2, in every copied file that contains it
   (subject to the exclusions below), which covers the `model:` frontmatter of the ticket prompts
   and the Ticket Processor / Domain Engineer
-  agents, plus the "Required Model" prose in `AGENTS.md`. In `model:` frontmatter, write the
+  agents, plus the "Required Model" prose in `AGENTS.md` and `README.md`. In `model:` frontmatter, write the
   value as the YAML scalar/array the field expects; in prose, write it as a human-readable model
   name or "A or B" list. If the user gave none, leave the token and list it as pending.
 - `{{PROJECT_SPECIFIC_FIXES}}` in `.ai/governance/custom-fixes.md` → replace with a single
@@ -232,7 +232,7 @@ Rules for this order:
 **Step 6a — immediately after generator #1 completes:** fill the three remaining placeholders from
 the now-existing `.ai/knowledge-base.md` (not from re-scanning the code), **in every file of this
 project that contains the token** (search the project's copied files; do not assume a single
-file): `{{MODULE_LIST}}` (the project's modules/components — appears in `AGENTS.md` and
+file): `{{MODULE_LIST}}` (the project's modules/components — appears in `AGENTS.md`, `README.md` and
 `.ai/behavior/ada-workflow.md`), `{{SHARED_LIBS}}` (shared libraries and any sign-off rule
 recorded for them — appears in `AGENTS.md` and `.ai/behavior/decision-rules.md`), and
 `{{STACK_SUMMARY}}` (one line: language, framework, UI, database). Use "not found in knowledge

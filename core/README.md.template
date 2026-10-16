@@ -1,0 +1,155 @@
+# {{PROJECT_NAME}} — AI Automation Guide
+
+> Human-facing onboarding guide. The AI-facing instruction file is [`AGENTS.md`](AGENTS.md) — read
+> it for the full workflow, ticket-type rules, and guardrails.
+
+## What This Is
+
+This repository ships an AI automation package for GitHub Copilot: an automated **ticket-to-PR
+workflow** (`fix ticket`) and an **accessibility (ADA/WCAG) fix workflow** (`/fixada-*`). Both are
+domain-aware — they load `.ai/knowledge-base.md` (the project's domain, rules, and architecture
+reference) before making any change.
+
+## At a Glance
+
+| Item | Detail |
+|---|---|
+| Project | {{PROJECT_NAME}} |
+| Modules | {{MODULE_LIST}} |
+| Repository | {{REPO_REMOTE_URL}} ({{SCM_PLATFORM}}) |
+| Base branch(es) | `{{BASE_BRANCHES}}` |
+| Branch naming | {{BRANCH_PREFIX_TABLE}} |
+| Solution / project files | {{SOLUTION_FILES}} |
+| Full build | `{{BUILD_COMMAND_FULL}}` |
+| Single-module build | `{{BUILD_COMMAND_MODULE}}` |
+
+---
+
+## Quick Start
+
+**Fix a ticket** — paste into Copilot chat:
+
+```
+fix ticket
+
+TicketID: PROJ-1234
+Type: Bug|Enhancement|CR|Analysis
+Description: <issue description>
+```
+
+**Fix accessibility issues** — pick the command that matches your source:
+
+```
+/fixada-file C:\Reports\scan.csv          ← single report file
+/fixada-folder C:\Reports\               ← folder of reports
+/fixada-results https://...              ← online report URL
+/fixada-preventive C:\path\to\code\      ← pre-scan check of code
+```
+
+You only confirm at a few checkpoints: the analysis (tickets) or branch strategy (ADA), the commit
+("yes"/"y"), reviewer emails, and the push ("PUSH"). Nothing is pushed without your explicit
+approval. See [`AGENTS.md`](AGENTS.md) for the complete step-by-step flow, the ticket-type gate
+(`Analysis` is read-only and never creates a branch or code), and the per-type build and reviewer
+rules.
+
+The workflow is configured to run on **{{REQUIRED_MODEL_LIST}}**; do not switch models mid-workflow.
+
+---
+
+## Which Chat Mode to Use
+
+| Work | Chat mode |
+|---|---|
+| `Analysis` tickets | Ask, Plan, or Agent mode (read-only) |
+| `Bug` / `Enhancement` / `CR` tickets | **Agent mode** (or the `Ticket Processor` agent) — needs file edits, build, and git |
+| ADA fixes (`/fixada-*`) | **Agent mode** (or the `Ticket Processor` agent) |
+
+Starting a Bug/Enhancement/CR ticket in Plan mode stops after the pre-code analysis — that is
+expected. Switch to Agent mode to continue. Details: "Which Chat Mode to Use" in
+[`AGENTS.md`](AGENTS.md).
+
+---
+
+## Folder Structure Reference
+
+```
+AGENTS.md                     AI-facing master instructions (workflow, rules, gotchas)
+README.md                     This guide
+.ai/
+├── knowledge-base.md         Canonical domain, architecture, and module reference (project-owned)
+├── governance/               Coding standards, SCM workflow, security, SQL rules, WCAG patterns
+├── behavior/                 STOP/FLAG/PROCEED decision rules, per-ticket-type risk posture, ADA workflow
+├── templates/                Commit-message and pull-request templates
+├── data-dictionary/          DB schema and stored-procedure reference (only if generated for this project)
+└── .toolkit-sync-state/      Bookkeeping for /sync-toolkit — do not edit by hand
+.github/
+├── copilot-instructions.md   Always-on guardrails Copilot reads for every request
+├── agents/                   Ticket Processor (ticket-to-PR) and Domain Engineer (implementation/review)
+├── prompts/                  Slash commands: fix-ticket, auto-fix, implement, pr-review, sync-toolkit
+└── skills/                   Reusable implementation patterns (patterns/SKILL.md)
+generators/                   Re-runnable generators that (re)build project-specific config files
+```
+
+`.ai/knowledge-base.md` and `.ai/data-dictionary/` belong to this project — they are generated from
+its own code and documents and are never changed by toolkit updates.
+
+---
+
+## Keeping This Toolkit Updated
+
+This automation package was installed from the **ai-automation-toolkit**. Improvements made there
+can be pulled into this project later with one command in Copilot chat (Agent mode):
+
+```
+/sync-toolkit --source <path-to-toolkit-clone> --version <tag>
+```
+
+- `--source` is a local clone of the toolkit repository (required).
+- `--version` is the toolkit release tag to update to (optional; defaults to the clone's current
+  `VERSION`).
+- The command has two modes, chosen automatically: **install** (first time — nothing has been
+  synced into this project yet) and **update** (a previous sync is recorded in
+  `.ai/.toolkit-sync-state/`). `--mode install|update` overrides the choice.
+- Updates never silently overwrite customizations. Framework-only files are refreshed; files this
+  project may have customized are **3-way merged** against the last synced version, and genuine
+  conflicts are shown to you rather than overwritten. Project-owned files (`.ai/knowledge-base.md`,
+  `.ai/data-dictionary/`) are never touched.
+- The command never commits or pushes. Review the reported changes and commit them yourself.
+
+---
+
+## 🔌 MCP Setup (Required for Full Automation)
+
+Automatic ticket fetching and pull-request creation use MCP servers configured for your editor:
+
+1. Install the MCP runner your team uses (for example `uvx`).
+2. Generate an API token for your ticket tracker and an access credential for {{SCM_PLATFORM}}
+   (for example an app password or personal access token).
+3. Add both servers to `.vscode/mcp.json` using those credentials.
+4. Verify in Copilot chat, for example: `@workspace Get ticket PROJ-1234 from the ticket tracker`.
+
+GitHub Copilot CLI keeps its own MCP registry separate from `.vscode/mcp.json`; register the same
+servers there if you run the workflow from the CLI. See [`AGENTS.md`](AGENTS.md) for CLI usage.
+
+---
+
+## Troubleshooting
+
+- **A command (`/fix-ticket`, `/fixada-*`, `/sync-toolkit`) is missing** — reload the Copilot chat
+  window (or VS Code) so it re-reads `.github/prompts/`. Slash commands from `.github/prompts/`
+  exist only in VS Code, not in Copilot CLI; use the `Ticket Processor` agent there instead.
+- **`fix ticket` cannot fetch the ticket** — it proceeds based on the description text you pasted;
+  include enough detail in `Description:`, or check your MCP configuration.
+- **The workflow stops after the analysis** — you are probably in Plan or Ask mode; switch to
+  Agent mode for Bug / Enhancement / CR tickets.
+- **The build fails** — the workflow will not push. Fix the build (`{{BUILD_COMMAND_FULL}}`) and
+  re-run; do not bypass the check.
+- **Output ignores project rules or seems out of date** — confirm `.ai/knowledge-base.md` reflects
+  the current code, and re-run the relevant generator from `generators/` if a config file is stale.
+
+---
+
+## Security
+
+Never commit `.vscode/mcp.json` or any other file containing credentials, tokens, or app passwords
+to Git — keep them out of version control (for example via `.gitignore`).

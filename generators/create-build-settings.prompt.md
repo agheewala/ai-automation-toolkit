@@ -127,9 +127,9 @@ references these tokens:
 | `{{BUILD_SCOPE_RULES}}` | `.ai/behavior/setting.md` (Section 1, "Build Scope") |
 | `{{RISK_THRESHOLDS}}` | `.ai/behavior/setting.md` (Section 2, "Ticket Type Risk Posture"), `.ai/behavior/decision-rules.md` (STOP Condition #8) |
 | `{{STACK_CHECKLIST}}` | `.ai/behavior/setting.md` (Section 3, "Pre-Push Checklist") — **only** this occurrence; do not touch the separate `{{STACK_CHECKLIST}}` in `.ai/governance/wcag-fix-patterns.md` (no generator owns it — it is intentionally hand-maintained per-project) |
-| `{{BUILD_COMMAND_FULL}}` | `AGENTS.md` (Build section), `.ai/governance/copilot-instruction.md`, `.ai/governance/scm-workflow.md`, `.ai/governance/security-and-compliance.md`, `.ai/templates/pr-template.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
-| `{{BUILD_COMMAND_MODULE}}` | Same 7 files as `{{BUILD_COMMAND_FULL}}` above |
-| `{{SOLUTION_FILES}}` | `AGENTS.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
+| `{{BUILD_COMMAND_FULL}}` | `AGENTS.md` (Build section), `README.md` (At a Glance table, Troubleshooting), `.ai/governance/copilot-instruction.md`, `.ai/governance/scm-workflow.md`, `.ai/governance/security-and-compliance.md`, `.ai/templates/pr-template.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
+| `{{BUILD_COMMAND_MODULE}}` | `AGENTS.md` (Build section), `README.md` (At a Glance table), `.ai/governance/copilot-instruction.md`, `.ai/governance/scm-workflow.md`, `.ai/governance/security-and-compliance.md`, `.ai/templates/pr-template.md`, `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
+| `{{SOLUTION_FILES}}` | `AGENTS.md`, `README.md` (At a Glance table), `.github/agents/ticket-processor.agent.md`, `.github/prompts/pr-review.prompt.md` |
 
 Use the exact same build-command strings everywhere a given token appears — these files must never
 disagree with each other about how to build the project.

@@ -21,6 +21,7 @@
       "description": "Generated-but-customizable — 3-way merge on update, never blind overwrite",
       "files": [
         "AGENTS.md.template",
+        "README.md.template",
         ".github/copilot-instructions.md.template",
         ".github/agents/ticket-processor.agent.md",
         ".github/agents/domain-engineer.agent.md",
