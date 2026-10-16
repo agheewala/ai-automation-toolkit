@@ -122,7 +122,14 @@ and never asked a second time.
 3. **System description** (`SYSTEM_DESCRIPTION`), **PVD/design-doc paths** (`PVD_PATHS`, or
    `none`), and **code root** (`CODE_ROOT`) — the knowledge-base generator's configuration block.
 4. **Required Copilot model(s)** for the ticket workflow, as the value for the `model:`
-   frontmatter field (`{{REQUIRED_MODEL_LIST}}`). Ask for a single model name or a list.
+   frontmatter field (`{{REQUIRED_MODEL_LIST}}`). **Default/recommended:** a fallback array of
+   `['Claude Sonnet 5 (copilot)', 'Claude Sonnet 5.5 (copilot)']` (first available model wins) —
+   this is the verified-working pattern. Ask the user to confirm this default or name a different
+   model/list; do not silently assume it without asking once. If they name their own model(s),
+   write exactly what they gave as the `model:` value (as a YAML array if more than one, a single
+   scalar if only one) — still in the `'Model Name (vendor)'` format if they give a bare name
+   without a vendor suffix, ask which vendor (e.g. `copilot`) rather than guessing or dropping the
+   suffix, since VS Code's `model:` frontmatter matching depends on the exact string.
 
 Do not fabricate any of these. If the user does not know one, record it as pending in the final
 report instead of inventing a value.
