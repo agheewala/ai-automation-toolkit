@@ -244,11 +244,13 @@ Choose A, B, or type a custom branch name:
 
 ### Branch Naming (For Option B or Custom)
 
+Branch prefixes per ticket type are defined by this project's scheme: {{BRANCH_PREFIX_TABLE}}. Name the branch `<prefix>/<TicketID>_<Short_Title>` using the prefix for the ticket's Type.
+
 | Type | Format | Example |
 |------|--------|---------|
-| Bug | `BUG/<TicketID>_<Short_Title>` | `BUG/PROJ-1234_Fix_Balance_Calc` |
-| Enhancement | `ER/<TicketID>_<Short_Title>` | `ER/PROJ-5678_Add_Order_Search` |
-| Change Request | `CR/<TicketID>_<Short_Title>` | `CR/PROJ-9012_Update_Pricing_Logic` |
+| Bug | `<Bug prefix>/<TicketID>_<Short_Title>` | `<Bug prefix>/PROJ-1234_Fix_Balance_Calc` |
+| Enhancement | `<Enhancement prefix>/<TicketID>_<Short_Title>` | `<Enhancement prefix>/PROJ-5678_Add_Order_Search` |
+| Change Request | `<CR prefix>/<TicketID>_<Short_Title>` | `<CR prefix>/PROJ-9012_Update_Pricing_Logic` |
 | Analysis | No branch — No code changes | N/A |
 
 ### Execution (If Branch Created)
@@ -661,7 +663,7 @@ Description: Account balance shows negative value after payment processing. Busi
    - Scope: Add validation before balance deduction
 5. ✅ User confirmed analysis
 6. ✅ Branch check: on {{BASE_BRANCHES}} → pulled latest → user chose Option B
-7. ✅ Created branch: BUG/PROJ-1234_Fix_Negative_Balance
+7. ✅ Created branch: <Bug prefix>/PROJ-1234_Fix_Negative_Balance
 7. ✅ Implemented fix:
    - Modified: relevant service implementation file
    - Added: Validation check before deduction

@@ -58,18 +58,18 @@ Copilot must always refer to and align its suggestions with:
    - Primary anchor for ALL domain, rule, architecture, and module-boundary decisions
    - Replaces the former `domain-context.md` + `architecture.md` split
 
-2. `.ai/data-dictionary/` (`db-schema-dictionary.md`, `stored-procedures.md`, `stored-procedure-dataflows.md`, `README.md`)
+2. `.ai/data-dictionary/` (if present — see `.ai/data-dictionary/README.md`; for projects with no database or a non-SQL-Server engine it may not exist, see `.ai/governance/SQL_Guidelines.md` for the current engine's data-dictionary status, then use `.ai/knowledge-base.md` Section 7 instead) (`db-schema-dictionary.md`, `stored-procedures.md`, `stored-procedure-dataflows.md`, `README.md`)
    - **Authoritative, priority source for all database schema and SQL facts** — generated from a
      database catalog export (every table, every column, data type, nullability, PK, description)
      plus the full stored procedure library (complete script + Mermaid dataflow diagram per
      procedure)
-   - MUST be consulted first whenever: a SQL script needs to be prepared (production fix, ad-hoc
+   - When present, MUST be consulted first whenever: a SQL script needs to be prepared (production fix, ad-hoc
      query, or stored procedure), any data analysis is requested, or any code change performs a
      `SELECT` / `INSERT` / `UPDATE` / `DELETE` against the database
    - Takes priority over hand-written/summarized table lists elsewhere when there is a conflict on
      table/column existence, naming, or data type
    - Never invent a table, column, or stored procedure name/signature — verify against these files
-     first; if not found, treat as unknown and ask the user (see `.ai/behavior/decision-rules.md`)
+     first (or `.ai/knowledge-base.md` Section 7 where the dictionary is absent); if not found, treat as unknown and ask the user (see `.ai/behavior/decision-rules.md`)
 
 ---
 

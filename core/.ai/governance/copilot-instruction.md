@@ -131,12 +131,14 @@ After analysis is complete and before the first code change, always prompt:
 Provide a suggested branch name using the format:
 
 ```
-<Type>/<TicketID>_<Short_Ticket_Title>
+<prefix>/<TicketID>_<Short_Ticket_Title>
 ```
+
+where `<prefix>` is the one this project defines for the ticket's Type: {{BRANCH_PREFIX_TABLE}}.
 
 Example:
 ```
-CR/PROJ-1234_Ticket_Title
+<CR prefix>/PROJ-1234_Ticket_Title
 ```
 
 Then ask explicitly:
@@ -376,7 +378,7 @@ After the PR is created, guide the user through these exact steps (UI labels var
 
 Example:
 ```
-PR: CR/PROJ-1234_Ticket_Title
+PR: <CR prefix>/PROJ-1234_Ticket_Title
 ```
 
 ---

@@ -28,8 +28,13 @@ database (see `core/.ai/governance/SQL_Guidelines.md` Section 0, which already m
 
 ## Step 1: Ask the user which database engine they use
 
-Ask the user directly: *"Which database engine does this project use? (SQL Server, Oracle, other)"*
+Ask the user directly: *"Which database engine does this project use? (SQL Server, Oracle, other, or none)"*
 
+- **If the project has no database at all**: stop here. In the target project's own copy of
+  `.ai/governance/SQL_Guidelines.md`, replace every `{{DB_NAME}}` token with
+  `N/A — this project has no database` so no raw token is left behind, and tell the user that
+  no data dictionary is needed. Do not create `.ai/data-dictionary/`, and end the generator run
+  here (then delete this file per the cleanup note, since it has nothing further to do).
 - **If SQL Server**: continue to Step 2.
 - **If Oracle or any other engine**: stop here and tell the user plainly that Oracle/other-engine
   export queries are not yet available in this toolkit version — this is a known gap, not a

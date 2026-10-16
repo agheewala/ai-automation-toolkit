@@ -2,6 +2,10 @@
 
 This document defines the mandatory rules for validating SQL scripts used for data fixes in Production.
 
+> **No-database projects:** if this project has no database at all, this entire file does not apply
+> — ignore it, and treat the `{{DB_NAME}}` token below as moot (it is intentionally never filled
+> for such projects; `generators/create-data-dictionary.prompt.md` Step 1 records "N/A" if it is run).
+
 > **Primary database for this project:** `{{DB_NAME}}` (populated per-project by
 > `generators/create-knowledge-base.prompt.md` / the data-dictionary export — never hardcode a
 > specific project's database name in this `core/` file).
