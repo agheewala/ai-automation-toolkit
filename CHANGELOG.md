@@ -3,7 +3,7 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-16
 ### Changed
 - `generators/` is no longer installed into projects (it confused teams as an unexplained top-level
   folder). Install Mode drops the old Step 7 (copy generators; steps renumbered 7–8), the seven
