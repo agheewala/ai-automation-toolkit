@@ -36,7 +36,9 @@ Ask the user directly: *"Which database engine does this project use? (SQL Serve
   no data dictionary is needed. Do not create `.ai/data-dictionary/`, and end the generator run
   here (then delete this file per the cleanup note, since it has nothing further to do).
 - **If SQL Server**: continue to Step 2.
-- **If Oracle or any other engine**: stop here and tell the user plainly that Oracle/other-engine
+- **If Oracle or any other engine**: before stopping, still replace every `{{DB_NAME}}` token in the
+  target project's own copy of `.ai/governance/SQL_Guidelines.md` with the engine/database name
+  the user gave (e.g. `PostgreSQL`, `Oracle`), so the token is not left raw. Then stop here and tell the user plainly that Oracle/other-engine
   export queries are not yet available in this toolkit version — this is a known gap, not a
   silent failure. Do not fabricate an Oracle (or other engine) query, do not invent placeholder
   `.sql` files, and do not attempt to approximate the SQL Server queries for a different engine's

@@ -156,7 +156,7 @@ Then ask explicitly:
 
 Branch creation command:
 ```bash
-git checkout -b <Type>/<TicketID>_<Short_Ticket_Title>
+git checkout -b <prefix>/<TicketID>_<Short_Ticket_Title>
 ```
 
 ---
