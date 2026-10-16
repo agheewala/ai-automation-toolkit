@@ -3,7 +3,7 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [1.4.0] - 2026-10-16
 ### Changed
 - Sync state is now a single file, `.ai/.toolkit-sync-state.json` (`toolkitVersion`, `stack`,
   `syncedAt`, and a per-Tier-2-file `files` map with `baseVersion` / `lastUpdatedAt` /
