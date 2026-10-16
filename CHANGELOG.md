@@ -3,6 +3,25 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+### Changed
+- Sync state is now a single file, `.ai/.toolkit-sync-state.json` (`toolkitVersion`, `stack`,
+  `syncedAt`, and a per-Tier-2-file `files` map with `lastUpdatedAt` / `lastMergeResult`),
+  replacing `.ai/.toolkit-sync-state/version.json` + the `baseline/` copy of every Tier 2 file.
+  It is always written atomically (temp file, verify, rename).
+- Update Mode no longer reads a persisted baseline: the merge base is fetched on demand from the
+  toolkit's git history for the single recorded `toolkitVersion` (`<installed>`, extracted exactly
+  like `<target>`). If that version's tag is missing from the toolkit clone the run stops and the
+  user chooses between aborting and treating every Tier 2 file as having no merge base.
+- The "Baseline reconciliation contract" is removed. Update Mode step numbers are unchanged; in the
+  3-Way Merge section old Step 6 (reconcile `baseline/`) and old Step 7 (write `version.json`) are
+  replaced by one Step 6 (write the state file), and old Steps 8 and 9 are now Steps 7 and 8.
+- Tag lookup tolerates a leading `v` (`VERSION` holds `1.3.0`, tags are `v1.3.0`).
+- Projects installed by an older toolkit (legacy `version.json` + `baseline/` folder) are
+  recognised on update; the legacy folder is ignored and offered for removal at the end.
+- `core/.ai/behavior/decision-rules.md` gains a rule that the ticket workflow and ad-hoc search
+  must never read, reference or edit `.ai/.toolkit-sync-state.json`.
+
 ## [1.3.0] - 2026-10-16
 ### Changed
 - `stacks/<stack>/` overlay is no longer installed into projects (same treatment as `generators/`);

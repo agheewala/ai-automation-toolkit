@@ -81,7 +81,7 @@ README.md                     This guide
 ├── behavior/                 STOP/FLAG/PROCEED decision rules, per-ticket-type risk posture, ADA workflow
 ├── templates/                Commit-message and pull-request templates
 ├── data-dictionary/          DB schema and stored-procedure reference (only if generated for this project)
-└── .toolkit-sync-state/      Bookkeeping for /sync-toolkit (hidden folder) — do not edit or delete
+└── .toolkit-sync-state.json  Bookkeeping file for /sync-toolkit (hidden file) — do not edit or delete
 .github/
 ├── copilot-instructions.md   Always-on guardrails Copilot reads for every request
 ├── agents/                   Ticket Processor (ticket-to-PR) and Domain Engineer (implementation/review)
@@ -93,12 +93,14 @@ data-dictionary-tooling/      SQL export queries used to build .ai/data-dictiona
 `.ai/knowledge-base.md` and `.ai/data-dictionary/` belong to this project — they are generated from
 its own code and documents and are never changed by toolkit updates.
 
-**What is `.ai/.toolkit-sync-state/`?** It is the toolkit's bookkeeping folder (hidden, because its
-name starts with a dot).
-`/sync-toolkit` uses it to remember which toolkit version is installed (`version.json`) and keeps a
-pristine copy of the toolkit's original files (`baseline/`) so that later updates can merge
-changes without overwriting your customizations. Deleting or hand-editing it makes the next
-update treat this project as not installed or corrupt. Commit it with the rest of `.ai/`.
+**What is `.ai/.toolkit-sync-state.json`?** It is the toolkit's bookkeeping file (hidden, because
+its name starts with a dot). `/sync-toolkit` uses it to remember which toolkit version is installed
+and, for each toolkit-managed file, when it was last synced and what the result was. It holds no
+copies of toolkit files: when you update, the original files of the installed version are read
+from the toolkit clone's git history (so the clone must still have that version's tag), which is
+what lets updates merge changes without overwriting your customizations. Deleting it makes the
+next sync treat this project as not installed; hand-editing it can break updates. Commit it with
+the rest of `.ai/`.
 
 The toolkit's generators (the commands that build `.ai/knowledge-base.md`, the governance files,
 and so on) are **not** installed in this project; they are read straight from your toolkit
@@ -120,7 +122,7 @@ can be pulled into this project later with one command in Copilot chat (Agent mo
   `VERSION`).
 - The command has two modes, chosen automatically: **install** (first time — nothing has been
   synced into this project yet) and **update** (a previous sync is recorded in
-  `.ai/.toolkit-sync-state/`). `--mode install|update` overrides the choice.
+  `.ai/.toolkit-sync-state.json`). `--mode install|update` overrides the choice.
 - Updates never silently overwrite customizations. Framework-only files are refreshed; files this
   project may have customized are **3-way merged** against the last synced version, and genuine
   conflicts are shown to you rather than overwritten. Project-owned files (`.ai/knowledge-base.md`,
@@ -141,7 +143,7 @@ change — without a full update, use generator mode (Agent mode):
 `create-build-settings`, `create-scm-workflow`, `create-implementation-patterns` or
 `create-domain-agent`. The generator is read directly from the toolkit clone (nothing is copied into
 this project), it reuses what this project already records, and it does not touch
-`.ai/.toolkit-sync-state/`. This requires the project to be installed already. It never commits or
+`.ai/.toolkit-sync-state.json`. This requires the project to be installed already. It never commits or
 pushes.
 
 ---

@@ -119,3 +119,16 @@ If two files give contradictory instructions: **the higher priority file wins**.
 - Always communicate blockers clearly and immediately — never work around them silently.
 
 ---
+
+## 8. Toolkit Bookkeeping Is Off-Limits
+
+`.ai/.toolkit-sync-state.json` (and its transient `.ai/.toolkit-sync-state.json.tmp`) is
+machine-managed bookkeeping for the toolkit's `/sync-toolkit` command. It has no bearing on ticket
+work.
+
+- The ticket-fix workflow and any ad-hoc code search, analysis or review must **never read,
+  reference, quote or edit** it. Leave it out of searches, summaries and diffs you present, and
+  never list it as a file to change.
+- Only the `/sync-toolkit` command reads or writes it.
+
+---

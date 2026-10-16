@@ -112,7 +112,7 @@ record each distinctly and ask the user which one(s) the ticket workflow's build
   `<source>/stacks/<chosen-stack>/notes.md` exists (e.g. `<source>/stacks/dotnet-mvc/notes.md`),
   where `<source>` is the toolkit source clone (the same `<source>` path used throughout
   `/sync-toolkit`) and `<chosen-stack>` is the stack overlay chosen during install (or recorded as
-  `stack` in `.ai/.toolkit-sync-state/version.json` when re-run via `--generator`; if neither is
+  `stack` in `.ai/.toolkit-sync-state.json` when re-run via `--generator`; if neither is
   available, the stack identified in `CODE_ROOT`'s `.ai/knowledge-base.md`). Read it directly from
   the toolkit source clone — never from the target project, which does not contain a `stacks/`
   folder. If present, read it for example pre-push gate ideas worth confirming against the real

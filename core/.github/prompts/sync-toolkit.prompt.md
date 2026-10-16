@@ -37,12 +37,12 @@ Parse these from the user's invocation text:
   mutually exclusive with `--mode` and `--version` (if the user supplies either alongside
   `--generator`, say so and ask which they mean). Generators are never copied into this project;
   they are always read from `<source>/generators/`.
-- `--mode install|update` (optional): if omitted, auto-detect — `install` if
-  `.ai/.toolkit-sync-state/version.json` does not exist in this project, `update` otherwise.
-  If the user explicitly passes `--mode install` but `version.json` already exists, stop and warn
-  that a re-install would overwrite customized Tier 2 files; continue only on explicit
-  confirmation, and in that case treat every existing destination file as a conflict (see
-  Install Step 4).
+- `--mode install|update` (optional): if omitted, auto-detect — `install` if neither
+  `.ai/.toolkit-sync-state.json` nor the legacy `.ai/.toolkit-sync-state/version.json` (see Update
+  Mode Step 1) exists in this project, `update` otherwise. If the user explicitly passes
+  `--mode install` but either of those already exists, stop and warn that a re-install would
+  overwrite customized Tier 2 files; continue only on explicit confirmation, and in that case treat
+  every existing destination file as a conflict (see Install Step 4).
 
 After parsing, verify `<source>` contains `manifest.json`, `VERSION`, `core/`, `generators/`,
 `stacks/`, and `data-dictionary-tooling/`. If any is missing, stop and report which one.
@@ -82,13 +82,58 @@ An entry's source location is `<source>/<entry>` if that file exists, otherwise
 named in `manifest.json`. A `core/` file absent from the manifest is a toolkit bug: still copy it,
 and list it in your final report under "Files not classified in manifest.json".
 
-**Sync state** lives in `.ai/.toolkit-sync-state/` in this project:
+**Sync state** lives in one file in this project: `.ai/.toolkit-sync-state.json` (a file directly
+under `.ai/`, not a folder). Schema:
 
-- `version.json` — `{ "toolkitVersion": "<string>", "stack": "<string>", "syncedAt": "<ISO 8601 UTC>" }`
-- `baseline/` — a pristine copy of every Tier 2 file exactly as it exists in `<source>/core/`,
-  **stored under its manifest path** (so `AGENTS.md.template` stays `AGENTS.md.template`, with its
-  `{{...}}` placeholders unfilled). This is the common ancestor for update mode's 3-way merge. It
-  is never edited by hand and never contains this project's filled-in content.
+```json
+{
+  "toolkitVersion": "1.3.0",
+  "stack": "dotnet-mvc",
+  "syncedAt": "2026-10-16T12:00:00Z",
+  "files": {
+    "AGENTS.md.template": { "lastUpdatedAt": "2026-10-16T12:00:00Z", "lastMergeResult": "installed" },
+    ".github/agents/ticket-processor.agent.md": { "lastUpdatedAt": "2026-10-16T12:00:00Z", "lastMergeResult": "installed" }
+  }
+}
+```
+
+- `toolkitVersion` — the toolkit version this project was last synced to: the trimmed content of
+  `<source>/VERSION` at install/update time. It is the **only** version recorded. Every Tier 2
+  file's last-known-good template (the common ancestor, `BASE`, for update mode's 3-way merge) is
+  that version's template, because only Install Mode and the 3-Way Merge section's final state
+  write ever change it and Generator Mode never touches it. No template content is stored in this
+  project: update mode re-derives `BASE` from the toolkit's git history (Update Mode Step 2,
+  item 5).
+- `stack` — the stack overlay chosen at install (`none` if none).
+- `syncedAt` — ISO 8601 UTC time of the last completed install/update.
+- `files` — exactly one entry per Tier 2 manifest path, keyed by the manifest path itself (so
+  `AGENTS.md.template` stays `AGENTS.md.template`). Each entry has `lastUpdatedAt` (ISO 8601 UTC)
+  and `lastMergeResult`. There is no per-file version and no per-file content.
+- `lastMergeResult` — one of: `installed` (written by Install), `unchanged`, `clean-merged`,
+  `conflict (<n>)` (for example `conflict (2)`), `no-merge-base`, `utf16-32-not-merged`,
+  `markers-not-merged`, `error`, `not-present` (the project's file does not exist), or
+  `resolved-manually` (set by the user-driven recovery in the 3-Way Merge section, Step 2). These
+  are the short forms of the outcomes the 3-Way Merge section reports (its Step 2/4 table maps
+  each one).
+
+This file is the single "the sync is complete" marker, so it must never be left partially written.
+**Atomic write — mandatory at every place this file is written** (Install Step 7, 3-Way Merge
+Step 6, and the Step 2 recovery option 3). Never overwrite `.ai/.toolkit-sync-state.json`
+directly:
+
+1. Build the full new content (valid JSON, UTF-8 without BOM).
+2. Write it to `.ai/.toolkit-sync-state.json.tmp`. If a leftover `.tmp` from an interrupted run
+   exists, it is this prompt's own scratch file: remove it first
+   (`Remove-Item -LiteralPath '.ai/.toolkit-sync-state.json.tmp' -Force`), then create the file
+   with your file-creation tool.
+3. Verify the write: re-read the `.tmp` file and confirm it parses as JSON, that `toolkitVersion`
+   is the intended value, and that the `files` keys are exactly the intended set, e.g.
+   `$j = Get-Content -Raw -LiteralPath '.ai/.toolkit-sync-state.json.tmp' | ConvertFrom-Json; $j.toolkitVersion; @($j.files.PSObject.Properties.Name).Count`.
+   If any check fails, delete the `.tmp` file, leave the real file untouched, stop and report.
+4. Only then move it over the real path:
+   `Move-Item -LiteralPath '.ai/.toolkit-sync-state.json.tmp' -Destination '.ai/.toolkit-sync-state.json' -Force`.
+
+The `.tmp` file exists only between steps 2 and 4; it is never left behind by a successful write.
 
 ---
 
@@ -101,9 +146,9 @@ and list it in your final report under "Files not classified in manifest.json".
 ## Install Mode
 
 Follow these steps in order. If any step fails, stop and report — do **not** write
-`.ai/.toolkit-sync-state/version.json` unless every step through Step 7 completed (its absence is
-what makes a re-run detect install mode again). `version.json` is the very last file written, as
-the atomic "install is done" marker.
+`.ai/.toolkit-sync-state.json` unless every step before Step 7 completed (its absence is what
+makes a re-run detect install mode again). It is the very last file written, atomically (temp file
+then rename, per Shared Conventions), as the "install is done" marker.
 
 ### Step 1 — Read the manifest
 
@@ -167,8 +212,8 @@ step.**
 ### Step 4 — Resolve conflicts, then copy
 
 1. If the conflict list from Step 3 is non-empty, show it and ask the user, per file or for all,
-   to choose **keep existing** (record it as skipped in the report, and note it will not be
-   reflected in the baseline's merge expectations), **overwrite**, or **save toolkit version
+   to choose **keep existing** (record it as skipped in the report; later updates will treat that
+   file as customized), **overwrite**, or **save toolkit version
    alongside as `<name>.toolkit-new`** for manual merging. Wait for the answer. (With an explicit
    `--mode install` over an existing install, every existing destination file is on this list.)
 2. Only now perform the writes planned in Step 3: create every planned destination file (creating
@@ -178,7 +223,7 @@ step.**
 ### Step 5 — Fill sync-owned placeholders
 
 Four placeholder occurrences have no generator that owns them, so install fills them directly in the
-project's copies (never in `<source>`, and never in the baseline):
+project's copies (never in `<source>`):
 
 - `{{PROJECT_NAME}}` → the project name from Step 2, in every copied file that contains it
   (subject to the exclusions below).
@@ -270,19 +315,25 @@ base" rather than inventing content when it does not say.
 
 ### Step 7 — Write the sync state
 
-Order matters: the baseline is written first and `version.json` last, so that `version.json`
-existing always means the baseline is complete.
-
-1. Create `.ai/.toolkit-sync-state/baseline/`. For **every Tier 2 file in the manifest**, copy the
-   file from `<source>/core/<manifest-path>` into `baseline/<manifest-path>` exactly as it is in
-   the source (placeholders unfilled, `.template` suffix kept). Do not copy from this project's
-   filled-in versions. Do not put Tier 1 or Tier 3 files in the baseline. Verify every Tier 2
-   manifest entry now exists in `baseline/` before continuing.
-2. **Last**, create `.ai/.toolkit-sync-state/version.json`:
-   ```json
-   { "toolkitVersion": "<contents of <source>/VERSION, trimmed>", "stack": "<chosen stack or none>", "syncedAt": "<current ISO 8601 UTC timestamp>" }
-   ```
-   Use the current date/time available to you; if you cannot determine it, ask the user.
+This is the last write of the install. Write exactly one file, `.ai/.toolkit-sync-state.json`,
+using the **atomic write** procedure from Shared Conventions (temp file, verify, rename) — never
+directly. Use the current date/time available to you for the timestamps; if you cannot determine
+it, ask the user. Content:
+```json
+{
+  "toolkitVersion": "<contents of <source>/VERSION, trimmed>",
+  "stack": "<chosen stack or none>",
+  "syncedAt": "<current ISO 8601 UTC timestamp>",
+  "files": {
+    "<manifest-path>": { "lastUpdatedAt": "<same timestamp>", "lastMergeResult": "installed" }
+  }
+}
+```
+The `files` map has one entry for **every Tier 2 file in the manifest** (Step 1), keyed by its
+manifest path (`.template` suffix kept) — and no Tier 1 or Tier 3 paths. Every entry is
+`"installed"`, including files the user kept or saved as `.toolkit-new` in Step 4 (update mode
+treats a kept file as customized against the installed template). Before the rename, the
+verification step must confirm the `files` key set equals the manifest's Tier 2 set exactly.
 
 ### Step 8 — Stop and report
 
@@ -290,7 +341,7 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
 
 - Toolkit version and stack installed.
 - Every file created, grouped as: core files, data-dictionary tooling,
-  sync state (`version.json` + baseline file count). Generators and stack overlays are not copied
+  sync state (`.ai/.toolkit-sync-state.json`, with its Tier 2 `files` entry count). Generators and stack overlays are not copied
   into the project, so there is no generators group and no stack overlay group.
 - Files skipped or saved as `.toolkit-new` in Step 4.
 - Each generator that ran and its outcome, plus any skipped (e.g. data dictionary). Tell the user
@@ -299,10 +350,9 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
 - Placeholders still pending: search the project's files only for tokens matching this toolkit's
   `{{UPPER_SNAKE_CASE}}` convention (regex `\{\{[A-Z][A-Z0-9_]*\}\}`) and list file + token. Do
   NOT flag other `{{...}}` syntax (Handlebars, Jinja, Angular, etc.) — that is the project's own.
-  **Exclude from this scan**: `.github/prompts/sync-toolkit.prompt.md`,
-  `.ai/.toolkit-sync-state/baseline/`, and any `*.toolkit-new` files — they contain tokens by
-  design (instructional text, unfilled baseline templates, or unmerged toolkit copies), so listing
-  them is noise. Also ignore a token that appears only inside an explanatory note about itself
+  **Exclude from this scan**: `.github/prompts/sync-toolkit.prompt.md` and any `*.toolkit-new`
+  files — they contain tokens by design (instructional text, or unmerged toolkit copies), so
+  listing them is noise. Also ignore a token that appears only inside an explanatory note about itself
   (a blockquote or HTML comment per Step 5, e.g. the retained notes in `custom-fixes.md` and
   `wcag-fix-patterns.md`); a token counts as pending only if a real, unfilled placeholder remains.
   Also list any file still containing the literal `<remote URL not yet configured>` (the
@@ -322,8 +372,8 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
 
 <!-- ============================================================================
      SECTION: UPDATE MODE  (detection + Tier 1 overwrite + interim summary)
-     Tier 2 three-way merge, baseline refresh and the version.json bump are owned by the
-     3-way merge section below. Do not add them in this section.
+     Tier 2 three-way merge and the sync-state write are owned by the 3-way merge section below.
+     Do not add them in this section.
      ============================================================================ -->
 
 ## Update Mode
@@ -334,47 +384,62 @@ overwrites Tier 1 files. It ends with an interim summary and a hand-off to the *
 section.
 
 **State-safety rule (mirrors Install Mode's atomicity rule).** Update Mode steps 1–7 **never write
-or modify anything under `.ai/.toolkit-sync-state/`** — neither `version.json` nor `baseline/`.
-Both are refreshed only by the 3-Way Merge section, `baseline/` first and `version.json` last, once
-Tier 2 handling is complete. Consequence: if this procedure is interrupted at any point,
-`version.json` still names the old version, so a re-run simply repeats update mode. Each step is
-safe to repeat: re-copying a missing file, re-overwriting a Tier 1 file and re-listing
-deprecated/unrecognized files are idempotent, and the staging directory is uniquely named per run
-(Step 2) so a leftover from an interrupted run never blocks a re-run. The one step whose effect
-cannot be re-derived from the project alone is a confirmed deletion in Step 4 (a re-run no longer
-finds the deleted file); that is why baseline cleanup is **not** driven by this run's in-memory
-list but is reconciled from disk state + the target manifest by the 3-Way Merge section (see the
-**Baseline reconciliation contract** in Step 7). Never write "partial done" state anywhere.
+or modify `.ai/.toolkit-sync-state.json`** (or its `.tmp` scratch file). It is written only by the
+3-Way Merge section's final state-write step, atomically (temp file then rename), once Tier 2
+handling is complete. Consequence: if this procedure is interrupted at any point, the file still
+names the old version, so a re-run simply repeats update mode with the same `<installed>` content
+for `BASE`. There is no separate "corrupt baseline" case: nothing is persisted locally except
+that one file, and it is only ever replaced whole. Each step is safe to repeat: re-copying a
+missing file, re-overwriting a Tier 1 file and re-listing deprecated/unrecognized files are
+idempotent, a Tier 2 file already merged by an interrupted run merges again cleanly (both sides
+made the same change), and the staging directories are uniquely named per run (Step 2) so a
+leftover from an interrupted run never blocks a re-run. Never write "partial done" state anywhere.
 
 Use the **Path mapping**, **Whole-`core/` rule** and **Sync state** definitions from Shared
 Conventions unchanged. Do not invent a different mapping for update mode.
 
 ### Step 1 — Read the installed state
 
-Read `.ai/.toolkit-sync-state/version.json` in this project to get the installed `toolkitVersion`
-and `stack`. If it is missing or unparseable, stop: this is not a completed install (re-run in
-install mode). Also confirm `.ai/.toolkit-sync-state/baseline/` exists; if not, stop and report
-the state as corrupt rather than reconstructing it.
+Read `.ai/.toolkit-sync-state.json` in this project to get the installed `toolkitVersion`, `stack`
+and the `files` map. If it is missing, unparseable, or lacks `toolkitVersion` or `files`:
+
+- **Legacy layout.** If `.ai/.toolkit-sync-state/version.json` exists (an install made by a toolkit
+  version that kept a `version.json` + `baseline/` folder instead of this file), read
+  `toolkitVersion` and `stack` from it and continue as an update. There are no prior `files`
+  entries to carry over (every entry is written fresh at the end of the run), and the legacy
+  `baseline/` folder is **ignored** — `BASE` always comes from `<installed>` (Step 2, item 5). Do
+  not touch the legacy folder during this run; the 3-Way Merge section's Step 6 tells the user it
+  is obsolete.
+- **Otherwise** stop: this is not a completed install (re-run in install mode). Do not
+  reconstruct the file.
+
+Call the recorded `toolkitVersion` the **installed version**.
 
 Resolve the **target version**: `--version` if given, otherwise the content of
-`<source>/VERSION` (trimmed). If the target equals the installed `toolkitVersion`, say so and ask
+`<source>/VERSION` (trimmed). If the target equals the installed version, say so and ask
 whether to continue as a drift check (Tier 1 files are re-checked and re-overwritten; Tier 2 is
-re-merged against an unchanged baseline); stop if the user declines. If the target looks older
-than the installed version, warn that this is a downgrade and continue only on explicit
-confirmation.
+re-merged with `BASE` identical to `THEIRS`, so every present file comes out `unchanged`); stop if
+the user declines. If the target looks older than the installed version, warn that this is a
+downgrade and continue only on explicit confirmation.
 
-### Step 2 — Obtain the target version's content without touching `<source>`'s working tree
+### Step 2 — Obtain the target and installed versions' content without touching `<source>`'s working tree
 
 Define **`<target>`** as a directory laid out exactly like a toolkit repo root (`manifest.json`,
 `VERSION`, `core/`, `generators/`, `stacks/`, `data-dictionary-tooling/`). All later steps and the
 3-Way Merge section read the target version only through `<target>`, using the same
 `<target>/<entry>`-then-`<target>/core/<entry>` lookup the Path mapping defines for `<source>`.
-Never check out, reset, stash or otherwise modify `<source>`'s working tree or branches.
+Define **`<installed>`** the same way for the **installed version** (item 5): it is the source of
+every Tier 2 file's `BASE`, read through the same lookup. Never check out, reset, stash or
+otherwise modify `<source>`'s working tree or branches.
 
 1. **Optional refresh.** If `<source>` has a remote, run `git -C <source> fetch --tags`. This
    updates only refs and tag objects, never the working tree. If the fetch fails (offline / no
    remote), continue with the tags already present locally and note it in the report.
-2. **Resolve the target.** Run `git -C <source> rev-parse --verify --quiet "<version>^{commit}"`.
+2. **Resolve the target.** A version string `<version>` names a tag as written or with a leading
+   `v` (the toolkit's tags look like `v1.3.0` while its `VERSION` file holds `1.3.0`): try
+   `<version>`, then `v<version>` if it does not already start with `v`, and use the first that
+   resolves. Run `git -C <source> rev-parse --verify --quiet "<candidate>^{commit}"`. Everywhere
+   in update mode, version strings are compared ignoring a leading `v` (`v1.3.0` = `1.3.0`).
    - **Resolves** → extract that version to a staging directory outside both repos (use the OS
      temp folder) under a **uniquely-suffixed path**: `<stage>` =
      `<temp>/toolkit-<version>-<yyyyMMddHHmmss>/` using the current UTC time (if the time is not
@@ -385,9 +450,9 @@ Never check out, reset, stash or otherwise modify `<source>`'s working tree or b
      Create `<stage>` (it must not already exist; if it somehow does, pick a new suffix).
      Extraction is byte-exact and **must go through a file, not a shell pipe**
      (PowerShell pipes corrupt binary tar streams):
-     `git -C <source> archive --format=tar -o <stage>.tar <version>` then
+     `git -C <source> archive --format=tar -o <stage>.tar <candidate>` then
      `tar -xf <stage>.tar -C <stage>`. `<target>` is `<stage>`; the tar file is removed together
-     with the staging directory at the very end of the 3-Way Merge section.
+     with the staging directory at the very end of the 3-Way Merge section (Step 7).
    - **Does not resolve** → if `<version>` equals `<source>/VERSION` (the target is simply what
      the clone currently has checked out and was never tagged), set `<target>` = `<source>` and
      treat it as **read-only** — you only read from it. Otherwise stop and report that the
@@ -396,7 +461,8 @@ Never check out, reset, stash or otherwise modify `<source>`'s working tree or b
 3. **Verify the target.** `<target>` must contain `manifest.json`, `VERSION`, `core/`,
    `generators/`, `stacks/` and `data-dictionary-tooling/` (same check as the Arguments section).
    If any is missing, stop and report which one. Confirm `<target>/VERSION` (trimmed) matches
-   `<version>`; if it does not, warn and ask whether to continue.
+   `<version>` (ignoring a leading `v` on either side); if it does not, warn and ask whether to
+   continue.
 4. **Read the target manifest.** Read `<target>/manifest.json`: the Tier 1 `files`, Tier 2
    `files`, Tier 3 `patterns` and the `deprecated` array. These lists, not guesses, define the
    tiers for the rest of update mode.
@@ -409,6 +475,43 @@ Never check out, reset, stash or otherwise modify `<source>`'s working tree or b
    tier comes from the
    manifest; a file in the set that the manifest does not list is **unclassified** (report it under
    "Files not classified in manifest.json", exactly as Install does, and do not modify it).
+5. **Obtain `<installed>` (the source of every `BASE`).** `<installed>` is a directory laid out
+   like a toolkit repo root holding the **installed version** from Step 1 (call the string
+   `<installed-version>`). Build it with exactly the mechanism of item 2 and the verification of
+   item 3, parameterized as follows. This happens now, before any file in this project is
+   written, because a missing installed version affects the whole run.
+   - **Same version as the target** (drift check, `<installed-version>` equals the target
+     version): `<installed>` = `<target>`; no second extraction.
+   - **Otherwise, resolve** `<installed-version>` with item 2's tag-candidate rule.
+     - **Resolves** → extract it with the same procedure as item 2 to a second, separately
+       named staging directory `<stage-installed>` =
+       `<temp>/toolkit-installed-<installed-version>-<yyyyMMddHHmmss>/` (same uniqueness rules
+       and the same "never reuse, empty or delete a pre-existing directory"; same
+       tar-via-file, never-a-pipe requirement):
+       `git -C <source> archive --format=tar -o <stage-installed>.tar <candidate>` then
+       `tar -xf <stage-installed>.tar -C <stage-installed>`. `<installed>` = `<stage-installed>`.
+     - **Does not resolve, but `<installed-version>` equals `<source>/VERSION`** → `<installed>` =
+       `<source>`, read-only (the same shortcut item 2 applies to `<target>`).
+     - **Does not resolve and is not `<source>/VERSION`** (tag deleted, shallow clone, wrong
+       clone, …) → the installed version's content is unavailable. This affects the **whole run**,
+       since every Tier 2 file's `BASE` comes from `<installed>`. **Stop before merging or
+       writing anything** and report: the installed version's tag is missing from `<source>`,
+       with the output of `git -C <source> tag --list`. Ask the user how to proceed, and do not
+       guess or skip this check:
+       (a) **abort** — restore the tag in `<source>` (fetch tags, unshallow, or point `--source`
+       at the right clone), then re-run; nothing has been changed, so remove this run's staging
+       directories and end the run; or
+       (b) **continue without a merge base** — `<installed>` = *none*, and every Tier 2 file gets
+       the `NO MERGE BASE` treatment defined for that case in the 3-Way Merge section's Step 2
+       (a `.toolkit-new` copy next to each file plus a loud "needs manual resolution"), for this
+       run only.
+   - **Verify `<installed>`** with item 3's check (`manifest.json`, `VERSION`, `core/`,
+     `generators/`, `stacks/`, `data-dictionary-tooling/` present). If it is not usable, treat it
+     exactly like the missing-tag case (the same choice between (a) and (b)). A `VERSION`
+     mismatch (ignoring a leading `v`) is a warning plus the same "continue?" question as item 3.
+   - `<installed>/manifest.json` is not otherwise used: `BASE` is found by the
+     `<installed>/<entry>`-then-`<installed>/core/<entry>` lookup, and the set of files to
+     process comes from the **target** manifest.
 
 ### Step 3 — Missing files
 
@@ -421,8 +524,8 @@ this project:
   (name the generator whose
   output it is, if one clearly owns it; otherwise say "no generator owns it — ask Copilot to
   install it from `<target>/core/<entry>` with the install-time placeholder substitutions").
-  A Tier 2 file is never meant to stay in template form. Do **not** write anything to `baseline/`
-  now (see the **Baseline reconciliation contract** in Step 7).
+  A Tier 2 file is never meant to stay in template form. Its `files` entry in the sync state is
+  written as `not-present` by the 3-Way Merge section's final state write.
 
 Never create a Tier 3 file.
 
@@ -431,7 +534,8 @@ Never create a Tier 3 file.
 For every entry in the target manifest's `deprecated` array, find it in this project. An entry
 containing a `/` is a project-relative path; a bare filename matches any file of that name under
 `.ai/` or `.github/agents|prompts|skills/`. List every match, and mark each one
-that is also a Tier 2 file in the *installed* baseline (the user may have customized it).
+that is also a Tier 2 file (a key of the state file's `files` map, or listed in a manifest) — the
+user may have customized it.
 
 - If nothing matches, say so and move on.
 - Otherwise ask the user to confirm the removal, per file or for all. **Delete a file only after
@@ -448,15 +552,17 @@ that is also a Tier 2 file in the *installed* baseline (the user may have custom
   so it is handled by the rules above (explicit per-file confirmation). If the project's `stacks/`
   folder is left empty after a confirmed deletion, tell the user it can be removed; remove it only
   on their explicit confirmation.
-- Do not touch `baseline/` here. A deleted file's baseline entry (if any) is removed by the
-  3-Way Merge section's reconciliation (Step 7), which derives it from the target manifest and
-  on-disk state, so it is cleaned up even if this run is interrupted right after the deletion.
+- A deleted or kept deprecated file needs no sync-state handling here: the state file's `files` map
+  is rebuilt from the target Tier 2 set when it is written (3-Way Merge Step 6), so a deprecated
+  path never appears in it.
 
 ### Step 5 — Unrecognized extra files (report only)
 
 Scan this project's `.ai/` folder and `.github/agents/`, `.github/prompts/`, `.github/skills/`
 for files that are in **none** of: the target's Tier 1/Tier 2 destinations (after path mapping and
-`.template` stripping), the Tier 3 patterns, the target `deprecated` list, or `.ai/.toolkit-sync-state/`.
+`.template` stripping), the Tier 3 patterns, the target `deprecated` list, or the toolkit's own
+sync-state paths (`.ai/.toolkit-sync-state.json`, its `.tmp` scratch file, and the legacy
+`.ai/.toolkit-sync-state/` folder, which the final summary reports separately).
 Report each as "unrecognized — not modified, verify manually" (this includes leftover
 `*.toolkit-new` files from an earlier install conflict). **Never read-modify, move, overwrite or
 delete an unrecognized file.** This step produces a report only.
@@ -476,7 +582,7 @@ are "unchanged").
 - Handle `.github/prompts/sync-toolkit.prompt.md` (this very file) **last** among the Tier 1
   files, and tell the user that the updated prompt takes effect on the next invocation; this run
   continues on the instructions already loaded.
-- Do not touch `.ai/.toolkit-sync-state/` here (see the State-safety rule above).
+- Do not touch `.ai/.toolkit-sync-state.json` here (see the State-safety rule above).
 
 ### Step 7 — Interim summary and hand-off
 
@@ -490,36 +596,22 @@ Tier 2 files (do not end the run here, and do not report the update as complete)
 | Unrecognized / Reported | Each unrecognized file, untouched |
 | Tier 1 Overwritten | Each Tier 1 file rewritten, plus a count of unchanged ones |
 
-Also state the target version, the resolved `<target>` path, whether it is a staging extraction
-or `<source>` itself, and any warnings raised so far (fetch skipped, downgrade/same-version
-confirmations, unclassified files, pending placeholders).
+Also state the target version, the installed version, the resolved `<target>` and `<installed>`
+paths (each: a staging extraction, or `<source>` itself, or — for `<installed>` only — *none* if the
+user chose to continue without a merge base), and any warnings raised so far (fetch skipped,
+downgrade/same-version confirmations, unclassified files, pending placeholders).
 
 **Hand-off values for the 3-Way Merge section** — keep these in working memory for it; they are
 inputs it consumes, not state to persist:
 
-- the resolved target version and `<target>` path (and whether `<target>` is a staging directory
-  that the merge section must remove at the very end — staging directories only; never `<source>`);
+- the resolved target version and `<target>` path, the installed version and `<installed>` path
+  (or *none*), and for each whether it is a staging directory (`<stage>` / `<stage-installed>`)
+  that the merge section must remove at the very end — staging directories only; never `<source>`;
 - the target manifest's Tier 2 file list and Tier 3 patterns;
 - the interim summary and warnings above, to be merged into the final report;
 - optionally, as a convenience only, the files deleted in Step 4 and the new Tier 2 files flagged
   in Step 3. This list is **informational (for the report) and non-authoritative**: the merge
   section must not depend on it, because it is lost if the run is interrupted.
-
-**Baseline reconciliation contract (binding on the 3-Way Merge section).** Before writing
-`version.json`, the 3-Way Merge section must reconcile `.ai/.toolkit-sync-state/baseline/`
-against the **target manifest** directly, independent of any in-memory list from this run, so the
-result is re-derivable from disk + `<target>` on every run:
-
-1. **Remove** every `baseline/` entry whose manifest path is not a Tier 2 file of the target
-   manifest — in particular any path listed in the target's `deprecated` array or absent from the
-   target manifest — whether or not the project's copy was deleted in Step 4 (this also cleans up
-   entries orphaned by an earlier interrupted run, and entries for deprecated files the user
-   chose to keep).
-2. **Add** (from `<target>/core/<manifest-path>`, placeholders unfilled, `.template` suffix kept)
-   every Tier 2 manifest entry that has no `baseline/` entry, and refresh every other Tier 2
-   entry once its merge is resolved, per the 3-Way Merge rules.
-3. End state: the set of `baseline/` entries equals exactly the target manifest's Tier 2 set.
-   Write `baseline/` first and `version.json` last, as the State-safety rule requires.
 
 <!-- ============================================================================
      END OF UPDATE MODE. The 3-Way Merge section below picks up at the Step 7 hand-off.
@@ -531,15 +623,20 @@ result is re-derivable from disk + `<target>` on every run:
 
 ## Tier 2 Three-Way Merge (continuation of Update Mode)
 
-Picks up from the Update Mode Step 7 hand-off. It merges every Tier 2 file, then reconciles
-`.ai/.toolkit-sync-state/baseline/`, then writes `version.json` last, then cleans up and reports.
+Picks up from the Update Mode Step 7 hand-off. It merges every Tier 2 file, then writes
+`.ai/.toolkit-sync-state.json` last (atomically), then cleans up and reports.
 It ends the whole `/sync-toolkit` update run. **It never runs `git add`, `git commit` or
 `git push`** — the final step reports and stops so the user can review and commit themselves.
 
 Definitions (for each Tier 2 manifest entry `<manifest-path>` of the **target** manifest):
 
-- `BASE` = `.ai/.toolkit-sync-state/baseline/<manifest-path>` — the template as it was when last
-  synced (placeholders unfilled, `.template` suffix kept).
+- `BASE` = `<installed>/core/<manifest-path>` — the template as it was at the project's installed
+  version, i.e. the version last synced (placeholders unfilled, `.template` suffix kept), found
+  with the usual `<installed>/<manifest-path>`-then-`<installed>/core/<manifest-path>` lookup.
+  `<installed>` was built in Update Mode Step 2, item 5, from the single `toolkitVersion` recorded
+  in `.ai/.toolkit-sync-state.json` (the value as it was **before** this run updates it). `BASE`
+  does not exist when `<installed>` is *none* (the user chose to continue without a merge base) or
+  when the file is absent from `<installed>`.
 - `THEIRS` = `<target>/core/<manifest-path>` — the new template.
 - `MINE` = this project's current, possibly customized `<project-path>`, where `<project-path>` is
   `<manifest-path>` with a trailing `.template` stripped (Shared Conventions, Path mapping).
@@ -552,7 +649,10 @@ this naturally: a filled-in line counts as a change on the `MINE` side, and only
 
 1. Take the Tier 2 file list from `<target>/manifest.json` (read it again; do not rely on the
    in-memory hand-off list). This is the **target Tier 2 set**. A Tier 2 file that is only a
-   `deprecated` match is not in the set and is not merged.
+   `deprecated` match is not in the set and is not merged. Confirm `<installed>` (resolved in
+   Update Mode Step 2, item 5, before anything was written) is available as handed off; do not
+   resolve tags again here. If it is *none*, no `BASE` copies are made and every file classifies
+   as `NO MERGE BASE` in Step 2.
 2. Create a scratch folder `<work>` = `<temp>/toolkit-merge-<yyyyMMddHHmmss>/` (UTC time, or a
    random 8-character suffix if the time is unavailable). It must not already exist; never reuse
    or empty a pre-existing folder. Merges are performed on copies in `<work>` so that `MINE` is
@@ -565,7 +665,9 @@ this naturally: a filled-in line counts as a change on the `MINE` side, and only
    would pull LF endings into a CRLF file. So, for every Tier 2 entry where the file exists,
    work only on LF-normalized scratch copies, and never compare or merge the originals:
 
-   - `<work>/base/<manifest-path>` — LF copy of `BASE`
+   - `<work>/base/<manifest-path>` — LF copy of `BASE` (the source file is
+     `<installed>/core/<manifest-path>`, not anything in this project; skipped when `BASE` does
+     not exist)
    - `<work>/theirs/<manifest-path>` — LF copy of `THEIRS`
    - `<work>/mine/<project-path>` — LF copy of `MINE`, **plus** `MINE`'s **dominant line-ending
      style**, recorded now: count `\r\n` sequences vs. bare `\n`; the larger count wins, and a
@@ -602,20 +704,24 @@ this naturally: a filled-in line counts as a change on the `MINE` side, and only
    Every "identical" / "differs" test in Steps 2 and 4 means: compare the **normalized** copies
    (`(Get-FileHash -LiteralPath a).Hash -eq (Get-FileHash -LiteralPath b).Hash`), never the
    originals. The normalized copies live only in `<work>`; the original `BASE`, `THEIRS` and
-   `<target>` files are never modified.
+   `<target>`/`<installed>` files are never modified.
 
 ### Step 2 — Classify each file before merging
 
 For every entry in the target Tier 2 set, decide its case, first match wins. Record the outcome
-and whether its baseline entry is refreshed (see Step 6):
+and how its sync-state entry is written (see Step 6). **Refresh** = `lastUpdatedAt` is set to the
+time of this run and `lastMergeResult` to the value shown. **Record only** = `lastMergeResult`
+is set to the value shown but `lastUpdatedAt` is left as it was in the state file read at the
+start of this run (or set to now if the entry is new or the project came from the legacy layout),
+because the project file was not brought up to date.
 
-| Case | Action | Outcome | Baseline entry |
+| Case | Action | Outcome | State entry |
 |---|---|---|---|
-| `MINE` does not exist (already flagged as a new/missing Tier 2 file in Update Mode Step 3, or deleted by the user) | Nothing to merge. | `not present in project` | add / refresh |
-| `MINE`, `BASE` or `THEIRS` is UTF-16/UTF-32 (starts with a `FF FE` / `FE FF` / `00 00 FE FF` BOM; see Step 1 item 3) | Byte-level newline handling is not valid for these encodings. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (UTF-16/32 file, not merged)` | **keep as is** (not refreshed) |
-| `BASE` does not exist (new Tier 2 file, or damaged baseline) | No common ancestor, so no 3-way merge is possible. If the normalized `MINE` is identical to the normalized `THEIRS` after the install placeholder substitutions, outcome `unchanged`. Otherwise copy `THEIRS` next to the project file as `<project-path>.toolkit-new` (overwriting an earlier `.toolkit-new`) and do not touch `MINE`. **Upstream changes in `.toolkit-new` are NOT in `MINE`** — see the risk note below the table. | `NO MERGE BASE — NEEDS MANUAL RESOLUTION (compare manually)` | add |
-| `MINE` still contains an unresolved conflict-marker block from an earlier sync (the full triple, in order — see **Marker guard** below) | Do not merge on top of markers. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (markers from a previous sync, not merged)` | **keep as is** (not refreshed) |
-| Normalized `BASE` and normalized `THEIRS` are identical | The toolkit did not change this file (any raw difference was line endings only). Leave `MINE` untouched. | `unchanged` | refresh (no-op) |
+| `MINE` does not exist (already flagged as a new/missing Tier 2 file in Update Mode Step 3, or deleted by the user) | Nothing to merge. | `not present in project` | record only: `not-present` |
+| `MINE`, `BASE` or `THEIRS` is UTF-16/UTF-32 (starts with a `FF FE` / `FE FF` / `00 00 FE FF` BOM; see Step 1 item 3) | Byte-level newline handling is not valid for these encodings. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (UTF-16/32 file, not merged)` | record only: `utf16-32-not-merged` |
+| `BASE` does not exist: `<installed>` is *none* (user chose to continue without a merge base), or the file does not exist in `<installed>` at all (for example a Tier 2 file added to the toolkit after the project's installed version) | No common ancestor, so no 3-way merge is possible. If the normalized `MINE` is identical to the normalized `THEIRS` after the install placeholder substitutions, outcome `unchanged`. Otherwise copy `THEIRS` next to the project file as `<project-path>.toolkit-new` (overwriting an earlier `.toolkit-new`) and do not touch `MINE`. **Upstream changes in `.toolkit-new` are NOT in `MINE`** — see the risk note below the table. | `unchanged`, or `NO MERGE BASE — NEEDS MANUAL RESOLUTION (compare manually)` | `unchanged`: refresh. Otherwise record only: `no-merge-base` |
+| `MINE` still contains an unresolved conflict-marker block from an earlier sync (the full triple, in order — see **Marker guard** below) | Do not merge on top of markers. Leave `MINE` untouched. | `NEEDS MANUAL RESOLUTION (markers from a previous sync, not merged)` | record only: `markers-not-merged` |
+| Normalized `BASE` and normalized `THEIRS` are identical | The toolkit did not change this file (any raw difference was line endings only). Leave `MINE` untouched. | `unchanged` | refresh: `unchanged` |
 | otherwise | Merge (Step 3). | decided in Step 4 | per Step 4 |
 
 **Marker guard.** A file counts as "still containing conflict markers" only if its text contains,
@@ -640,30 +746,41 @@ marker block from example text, and include the recovery steps below in the fina
 **Recovery from a marker-guard flag** (the guard only inspects `MINE`; it never edits files):
 
 1. *Real, leftover markers:* resolve them in the file (keep the right side, delete the marker
-   lines), then re-run `/sync-toolkit`. The file merges normally against its unchanged baseline.
-2. *False positive (example text that happens to hold the full triple):* in the file, temporarily
-   break one of the three example lines (for example indent `=======` by one space), re-run
-   `/sync-toolkit` so the file is merged, then restore that line by hand.
-3. *Upstream changes are not wanted, or were already applied by hand:* manually copy
-   `<target>/core/<manifest-path>` over `.ai/.toolkit-sync-state/baseline/<manifest-path>`
-   (byte-for-byte, same as Step 6), which marks the file as in sync; use this only after the
-   file has been reconciled with the new template, because the baseline then treats those
-   upstream changes as already applied.
+   lines). The upstream hunks that were in the markers are then part of your file, so nothing is
+   lost; the next `/sync-toolkit` merges the file normally against the version recorded in
+   `.ai/.toolkit-sync-state.json`. Optionally record the file as resolved (option 3).
+2. *False positive (example text that happens to hold the full triple):* the file was **not**
+   merged this run, and the state file now records the target version as installed, so a re-run
+   will not merge it. Reconcile it by hand: compare `<project-path>` with the toolkit's new
+   template (`core/<manifest-path>` in `<source>` at the target version's tag; placeholders
+   unfilled, `.template` suffix kept) and apply the toolkit's changes yourself, then record the
+   file as resolved (option 3).
+3. *Record a file as reconciled* (after the user has resolved it by hand, or decided the
+   upstream changes are not wanted): update that one file's entry in
+   `.ai/.toolkit-sync-state.json` — `lastMergeResult` → `resolved-manually`, `lastUpdatedAt` →
+   now — using the same **atomic write** as Shared Conventions (read the whole file, change only
+   that entry, write everything to `.ai/.toolkit-sync-state.json.tmp`, verify it parses and the
+   key set is unchanged, then `Move-Item … -Force`). Leave `toolkitVersion`, `stack`, `syncedAt`
+   and every other entry as they are. This is bookkeeping only: it records the outcome for
+   whoever reads the file and does not change what a future merge uses as `BASE` (that is always
+   derived from `toolkitVersion`). Use it only after the file has really been reconciled.
 
-**Risk of the `NO MERGE BASE` row (do not understate it).** The baseline entry is added for this
-file, so on the next sync `BASE` == the target template and the upstream changes saved in
-`<project-path>.toolkit-new` will be silently considered "already applied" — they are never
-offered again unless the user acts. This file is therefore reported as **needs manual
-resolution** (same tier as an unresolved conflict), not as a passive note: the user must
-manually reconcile `<project-path>.toolkit-new` into `<project-path>` and then delete the
-`.toolkit-new` file **now**, before the next sync.
+**Risk of the `NO MERGE BASE` row (do not understate it).** At the end of this run the state
+file's `toolkitVersion` becomes the target version, so on the next sync `BASE` for this file is
+the target template and the upstream changes saved in `<project-path>.toolkit-new` will be
+silently considered "already applied" — they are never offered again unless the user acts. This
+file is therefore reported as **needs manual resolution** (same tier as an unresolved conflict),
+not as a passive note: the user must manually reconcile `<project-path>.toolkit-new` into
+`<project-path>` and then delete the `.toolkit-new` file **now**, before the next sync.
 
-The "keep as is" rule matters: refreshing the baseline to `THEIRS` while `MINE` does not contain
-the `THEIRS` changes would make the next merge treat those upstream changes as the user's
-deletions and silently drop them. The baseline therefore only advances for a file when `MINE`
-actually incorporates (or already equals) the target version of it — with the two deliberate
-exceptions that are surfaced loudly instead: a fresh conflict (its markers are in `MINE`, so the
-upstream hunks are present for the user to resolve) and `NO MERGE BASE` (see risk above).
+**The same risk applies to every file that this run did not bring up to the target version**
+(`no-merge-base`, `utf16-32-not-merged`, `markers-not-merged`, `error`). `BASE` is derived from
+the single project-wide `toolkitVersion`, so once it advances, those files' upstream changes are
+treated as already applied on the next run, and a re-run does **not** retry them. They are
+therefore all reported at the same visibility as an unresolved conflict, with the instruction to
+reconcile them by hand now. A file with fresh conflict markers (`conflict (<n>)`) is different:
+the upstream hunks are in `MINE` for the user to resolve, and the marker guard protects it from
+being merged again on top of its markers.
 
 ### Step 3 — Run the three-way merge
 
@@ -676,7 +793,7 @@ item 3 (the **normalize → compare → merge → restore** sequence; Step 4 doe
 2. Run, with your own `run_in_terminal` call, a merge **in place on the `merge` copy** (no output
    redirection and no pipe — PowerShell pipes can alter line endings and encodings):
    ```powershell
-   git merge-file -L "project (current)" -L "baseline (<installed version>)" -L "toolkit <target version>" "<work>/merge/<project-path>" "<work>/base/<manifest-path>" "<work>/theirs/<manifest-path>"
+   git merge-file -L "project (current)" -L "installed toolkit <installed version>" -L "toolkit <target version>" "<work>/merge/<project-path>" "<work>/base/<manifest-path>" "<work>/theirs/<manifest-path>"
    ```
    Argument order is *current, base, other*: `MINE`'s copy, then `BASE`, then `THEIRS`. `git merge-file`
    is a plain three-file text merge; it works on loose files and does not need this project, or
@@ -709,17 +826,19 @@ endings never counts as a change); "the file to write" below means the restored 
 - **Exit `0` (clean):** if the merged LF result differs from the normalized `MINE`, copy the
   restored output over `<project-path>`
   (`Copy-Item -LiteralPath <restored output> -Destination <project-path> -Force`) and record
-  `clean-merged`; if it is identical, leave `MINE` untouched and record `unchanged`. Baseline: refresh.
+  `clean-merged`; if it is identical, leave `MINE` untouched and record `unchanged`.
+  State entry: refresh (`clean-merged` / `unchanged`).
 - **Exit `1`–`127` (conflicts):** copy the restored output, **with its conflict markers**, over
   `<project-path>` and record `NEEDS MANUAL RESOLUTION (<n> conflict(s))`. **Never resolve a
   conflict by silently picking one side, and never drop the markers.** Clean hunks in the same
-  file are already merged by `git merge-file`; only genuine conflicts carry markers. Baseline:
-  refresh (the markers hold the upstream hunks for the user to resolve, so the next sync should
-  merge against this version's template; the marker guard in Step 2 protects an unresolved file
-  from being merged again on top of its markers, and keeps its baseline as is until resolved).
+  file are already merged by `git merge-file`; only genuine conflicts carry markers. State entry:
+  refresh, `lastMergeResult` = `conflict (<n>)` (the markers hold the upstream hunks for the user
+  to resolve; the marker guard in Step 2 protects an unresolved file from being merged again on
+  top of its markers).
 - **Error:** leave `<project-path>` untouched and record `ERROR — not merged (<reason>)`.
-  Baseline: **keep as is**. Continue with the remaining files and list it in the summary so the
-  user can re-run `/sync-toolkit` to retry it.
+  State entry: record only, `error`. Continue with the remaining files and list it in the summary
+  so the user can reconcile it by hand (a re-run does not retry it — see the risk notes after
+  Step 2's table).
 
 If `MINE` had mixed line endings, add "mixed line endings normalized to <style>" next to that
 file's outcome in the final summary.
@@ -731,71 +850,79 @@ For every file recorded `clean-merged` or conflicted, search the merged `<projec
 introduced a new placeholder). Do not fill them; list file + token under "Placeholders still
 pending" in the final summary.
 
-### Step 6 — Reconcile `baseline/` against the target manifest (before `version.json`)
+### Step 6 — Write `.ai/.toolkit-sync-state.json` (the last write of the run)
 
-This is the **Baseline reconciliation contract** from Update Mode Step 7. Derive everything from
-disk and `<target>`, not from this run's in-memory notes, so the result is correct even after
-several interrupted runs. The baseline is tool-owned state, so removing or rewriting its entries
-does not need user confirmation.
+Everything else this run changes in the project (Update Mode Steps 3, 4 and 6, and this section's
+Steps 3–4) must already be done; this file is written **absolutely last**, so that its content
+naming the target version always means the update run completed. If the run was aborted or a
+failure stopped it before this point, do **not** write it — the file keeps naming the installed
+version and a re-run repeats the update. The state file is tool-owned bookkeeping, so rewriting it
+needs no user confirmation.
 
-1. **Remove.** List every file under `.ai/.toolkit-sync-state/baseline/` recursively. Delete each
-   one whose path relative to `baseline/` is **not** in the target Tier 2 set — this covers paths
-   in the target's `deprecated` array, paths dropped from Tier 2 or from the manifest, deprecated
-   files the user chose to keep, and entries orphaned by an earlier interrupted run. Then remove
-   any `baseline/` folders left empty.
-2. **Add / refresh.** For every Tier 2 entry whose Step 2/4 baseline decision is *add* or
-   *refresh*, copy `<target>/core/<manifest-path>` to `baseline/<manifest-path>` byte-for-byte
-   (`Copy-Item -LiteralPath … -Force`, creating folders as needed). These are the raw templates:
-   placeholders **unfilled** and the `.template` suffix **kept** (matching Install Step 7 — the
-   baseline never holds this project's filled-in content or the stripped project name). Entries
-   marked *keep as is* are left exactly as they are, but **only if they already exist**; a
-   missing entry is always added.
-3. **Verify.** The set of files under `baseline/` must now equal the target Tier 2 set exactly.
-   If not, stop and report the difference — and do **not** write `version.json`.
+1. **Read the prior state.** Re-read `.ai/.toolkit-sync-state.json` from disk (it is unchanged
+   since Update Mode Step 1 because only this step writes it). If the project came from the
+   legacy layout there is no prior `files` map; treat every entry as new.
+2. **Build the new content:** `toolkitVersion` = the target version (`<target>/VERSION`,
+   trimmed); `stack` unchanged from the installed value; `syncedAt` = the current ISO 8601 UTC
+   time (ask the user if you cannot determine it); `files` = exactly one entry per path in the
+   **target Tier 2 set**, built from each file's Step 2/4 "State entry" decision:
+   - **refresh** → `lastUpdatedAt` = now, `lastMergeResult` = the value from the table/Step 4
+     (`unchanged`, `clean-merged`, `conflict (<n>)`);
+   - **record only** → `lastMergeResult` = the value from the table/Step 4 (`not-present`,
+     `utf16-32-not-merged`, `markers-not-merged`, `no-merge-base`, `error`); `lastUpdatedAt`
+     keeps its prior value, or = now if the entry is new or there was no prior `files` map.
+   Entries in the prior `files` map whose path is not in the target Tier 2 set (dropped or
+   deprecated files) are simply not carried over; a Tier 2 path new to the target set gets a
+   fresh entry. Nothing else is persisted: no template content, no per-file version.
+3. **Write atomically** with the procedure in Shared Conventions: write the content to
+   `.ai/.toolkit-sync-state.json.tmp`, re-read and verify it is valid JSON whose `toolkitVersion`
+   is the target version and whose `files` keys equal the target Tier 2 set exactly, then
+   `Move-Item -LiteralPath '.ai/.toolkit-sync-state.json.tmp' -Destination '.ai/.toolkit-sync-state.json' -Force`.
+   If verification fails, delete the `.tmp` file, leave the real file untouched, and report the
+   difference.
+4. **Legacy folder.** If the old `.ai/.toolkit-sync-state/` folder (`version.json` + `baseline/`)
+   exists, tell the user it is now obsolete and is no longer read; remove it
+   (`Remove-Item -LiteralPath '.ai/.toolkit-sync-state' -Recurse -Force`) only on their explicit
+   confirmation, otherwise leave it and mention it in the summary.
 
-The order is fixed: `baseline/` here first, `version.json` in Step 7 last, so `version.json`
-naming a version always means the baseline matches that version's Tier 2 set.
+### Step 7 — Clean up this run's temporary files
 
-### Step 7 — Write `version.json` (last write to sync state)
+Remove, and only these: `<work>` (Step 1), and — for each staging copy Update Mode Step 2
+extracted — `<stage>` and `<stage>.tar` (the target) and `<stage-installed>` and
+`<stage-installed>.tar` (the installed version)
+(`Remove-Item -LiteralPath <path> -Recurse -Force`). Paths are the exact ones this run created;
+never glob `toolkit-*` and never remove other leftovers (just mention them). When `<installed>` =
+`<target>`, or either is `<source>`, there is no separate staging copy for it. **Never remove
+`<source>`**, including when `<target>` or `<installed>` = `<source>`. A cleanup failure is not an
+update failure: report the path so the user can delete it. If the run aborts after staging was
+created, remove this run's `<work>`/`<stage>`/`<stage>.tar`/`<stage-installed>`/
+`<stage-installed>.tar` before stopping.
 
-Overwrite `.ai/.toolkit-sync-state/version.json` with `toolkitVersion` = the target version
-(`<target>/VERSION`, trimmed), `stack` unchanged from the installed value, and `syncedAt` = the
-current ISO 8601 UTC time (ask the user if you cannot determine it):
-```json
-{ "toolkitVersion": "<target version>", "stack": "<installed stack>", "syncedAt": "<now>" }
-```
-
-### Step 8 — Clean up this run's temporary files
-
-Remove, and only these: `<work>` (Step 1), and — if Update Mode Step 2 extracted a staging copy —
-`<stage>` and `<stage>.tar` (`Remove-Item -LiteralPath <path> -Recurse -Force`). Paths are the
-exact ones this run created; never glob `toolkit-*` and never remove other leftovers (just mention
-them). **Never remove `<source>`**, including when `<target>` = `<source>`. A cleanup failure is
-not an update failure: report the path so the user can delete it. If the run aborts after
-staging was created, remove this run's `<work>`/`<stage>`/`<stage>.tar` before stopping.
-
-### Step 9 — Final summary, then stop
+### Step 8 — Final summary, then stop
 
 Print one report that combines the Update Mode Step 7 interim summary (missing/added, deprecated,
 unrecognized, Tier 1 overwritten, warnings) with:
 
-- Target version and previous version.
+- Target version and previous (installed) version.
 - Every Tier 2 file with its outcome: `unchanged` / `clean-merged` / `NEEDS MANUAL RESOLUTION`
   (with conflict count, or the reason) / `NO MERGE BASE — NEEDS MANUAL RESOLUTION (compare manually)` (with the
   `.toolkit-new` path) / `not present in project` / `ERROR — not merged`.
 - A prominent **"Needs manual resolution"** list. It must contain, at the same visibility: (a) files
   containing conflict markers (search for `<<<<<<<` to resolve), (b) files skipped by the marker
   guard (with the matched line numbers and the Recovery steps from Step 2), (c) any file not
-  merged (`ERROR`), and (d) **every `<project-path>.toolkit-new` file created this run**, each with
-  this warning: *the upstream changes in this file are NOT in your project file, and the baseline
-  already shows them as applied, so the next sync will not offer them again; reconcile
-  `.toolkit-new` into the project file and delete it now, or those changes are lost.* Give the
-  instruction to resolve/review each item and review the diff.
-- Baseline: entries added, removed (and why), refreshed, and kept as is.
+  merged (`ERROR`, or skipped as UTF-16/32), and (d) **every `<project-path>.toolkit-new` file
+  created this run**, each with this warning: *the upstream changes in this file are NOT in your
+  project file, and the sync state now records the target version as installed, so the next sync
+  will not offer them again; reconcile `.toolkit-new` into the project file and delete it now, or
+  those changes are lost.* The same warning (without the `.toolkit-new` part) applies to every
+  file in (b) and (c): it was not brought up to the target version, and a re-run will not retry
+  it. Give the instruction to resolve/review each item and review the diff.
+- Sync state: `.ai/.toolkit-sync-state.json` written (new `toolkitVersion`, count of `files`
+  entries, and any entries whose `lastMergeResult` is not `unchanged` / `clean-merged`), plus
+  whether a legacy `.ai/.toolkit-sync-state/` folder was found and what happened to it.
 - Placeholders still pending (Step 5, plus Update Mode findings) and files not classified in
   `manifest.json`.
-- Cleanup result (Step 8), and if any file was `ERROR`/kept as is, that re-running `/sync-toolkit`
-  retries it.
+- Cleanup result (Step 7).
 - A closing instruction: review the changes and commit them in this repo yourself; this command
   made no commits and pushed nothing.
 
@@ -816,14 +943,16 @@ Use the **Path mapping** and **Sync state** definitions from Shared Conventions 
 
 ### Step 1 — Preconditions
 
-1. `.ai/.toolkit-sync-state/version.json` must exist in this project. If it does not, stop and tell
+1. `.ai/.toolkit-sync-state.json` must exist in this project (for a project installed by an older
+   toolkit version, the legacy `.ai/.toolkit-sync-state/version.json` also counts; read
+   `toolkitVersion` and `stack` from whichever exists). If neither does, stop and tell
    the user the project is not installed yet: run `/sync-toolkit --source <path>` (install mode)
    first. Do not run the generator.
 2. Resolve `<name>`: strip a trailing `.prompt.md` if present, then require that
    `<source>/generators/<name>.prompt.md` exists. If it does not, stop and list the available
    names (the `create-*.prompt.md` files under `<source>/generators/`, without suffix) — do not
    guess a close match.
-3. If `<source>/VERSION` (trimmed) differs from the installed `toolkitVersion` in `version.json`,
+3. If `<source>/VERSION` (trimmed) differs from the installed `toolkitVersion` in the sync state,
    warn the user that the generator comes from a different toolkit version than the one installed
    (suggest running update mode first) and continue only on their confirmation. This is a warning
    only; this mode never changes the installed version.
@@ -860,8 +989,9 @@ project — never copy it into this project first.
 
 ### Step 3 — Do not touch the sync state
 
-This mode **never writes, modifies or deletes anything under `.ai/.toolkit-sync-state/`** —
-`version.json` and `baseline/` stay exactly as they were. Re-running one generator is not a toolkit
+This mode **never writes, modifies or deletes `.ai/.toolkit-sync-state.json`** (nor its `.tmp`
+scratch file, nor a legacy `.ai/.toolkit-sync-state/` folder) — `toolkitVersion` and the `files`
+map stay exactly as they were. Re-running one generator is not a toolkit
 version change, and the files it produces are project-owned (Tier 3) or placeholder fills inside
 Tier 2 files that the next update merges normally.
 
