@@ -3,6 +3,16 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.1] - 2026-10-16
+### Fixed
+- Second-pilot validation pass (fresh Node.js throwaway project) found 4 residual issues missed
+  by the v1.1.0 fix batches: a leftover `Html.cLabelFor` reference in `wcag-fix-patterns.md`;
+  `{{DB_NAME}}` staying unfilled for Oracle/other-engine and no-database projects; a missing
+  "if present" conditional on the data-dictionary consultation mandate in
+  `copilot-instructions.md.template`; and a hardcoded `BUG/`/`ER/`/`CR/` branch-prefix scheme in
+  `ticket-processor.agent.md` and `copilot-instruction.md` (both Sections 5.2 and 5.3) that
+  contradicted each project's own generated `{{BRANCH_PREFIX_TABLE}}`. All fixed and re-verified.
+
 ## [1.1.0] - 2026-10-16
 ### Added
 - `core/README.md.template` — every installed project now gets a root `README.md` (previously
