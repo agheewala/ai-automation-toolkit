@@ -3,6 +3,14 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+### Changed
+- `stacks/<stack>/` overlay is no longer installed into projects (same treatment as `generators/`);
+  `create-build-settings` reads `<source>/stacks/<chosen-stack>/notes.md` from the toolkit clone.
+  `stacks/dotnet-mvc/notes.md` leaves manifest Tier 1 and is listed under `deprecated` so older
+  installs can clean up their copy on update (with confirmation). Update Mode no longer tracks
+  anything under `<target>/stacks/`. No step numbers changed.
+
 ## [1.2.0] - 2026-10-16
 ### Changed
 - `generators/` is no longer installed into projects (it confused teams as an unexplained top-level

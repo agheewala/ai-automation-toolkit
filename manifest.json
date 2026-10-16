@@ -6,8 +6,7 @@
       "files": [
         ".github/prompts/sync-toolkit.prompt.md",
         "data-dictionary-tooling/export-schema-catalog.sqlserver.sql",
-        "data-dictionary-tooling/export-stored-procedures.sqlserver.sql",
-        "stacks/dotnet-mvc/notes.md"
+        "data-dictionary-tooling/export-stored-procedures.sqlserver.sql"
       ]
     },
     "2": {
@@ -45,7 +44,7 @@
       ]
     }
   },
-  "notes": "generators/ is intentionally source-only (never installed into projects); re-run one with /sync-toolkit --source <path> --generator <name>. The deprecated entries below are copies installed by toolkit versions before generators became source-only.",
+  "notes": "generators/ and stacks/ are intentionally source-only (never installed into projects); re-run one generator with /sync-toolkit --source <path> --generator <name>. The deprecated entries below are copies installed by toolkit versions before generators and stack overlays became source-only.",
   "deprecated": [
     "generators/create-build-settings.prompt.md",
     "generators/create-coding-standards.prompt.md",
@@ -53,6 +52,7 @@
     "generators/create-domain-agent.prompt.md",
     "generators/create-implementation-patterns.prompt.md",
     "generators/create-knowledge-base.prompt.md",
-    "generators/create-scm-workflow.prompt.md"
+    "generators/create-scm-workflow.prompt.md",
+    "stacks/dotnet-mvc/notes.md"
   ]
 }

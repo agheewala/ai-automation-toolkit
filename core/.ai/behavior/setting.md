@@ -47,7 +47,7 @@ Before pushing any branch, confirm all of the following:
 □ No .vscode/mcp.json in the commit (contains API tokens)
 ```
 
-> `{{STACK_CHECKLIST}}` is populated per-project from `stacks/<stack>/notes.md` with the
+> `{{STACK_CHECKLIST}}` is populated per-project (by the toolkit's `create-build-settings` generator, which may consult the toolkit's own stack hints) with the
 > stack's own pre-push conventions (e.g. input-sanitization helpers, i18n/resource-string
 > rules, data-access-layer patterns, logging requirements, authorization attribute
 > conventions) — do not hardcode any single stack's conventions in this `core/` file.

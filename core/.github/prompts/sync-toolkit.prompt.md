@@ -61,7 +61,7 @@ These definitions are used by all modes. Do not redefine them in a mode section.
 | Manifest entry | Source location | Location in this project |
 |---|---|---|
 | Tier 2 entries (e.g. `.github/agents/ticket-processor.agent.md`, `AGENTS.md.template`, `README.md.template`) | `<source>/core/<entry>` | `<entry>`, with a trailing `.template` suffix stripped (`AGENTS.md.template` → `AGENTS.md`, `README.md.template` → `README.md`, `.github/copilot-instructions.md.template` → `.github/copilot-instructions.md`) |
-| Tier 1 entries starting `data-dictionary-tooling/` or `stacks/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
+| Tier 1 entries starting `data-dictionary-tooling/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
 | Tier 1 entries found under `core/` (today: `.github/prompts/sync-toolkit.prompt.md`) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
 | Tier 3 patterns (`.ai/knowledge-base.md`, `.ai/data-dictionary/**`) | never copied | produced by generators; **never touched by sync** |
 
@@ -69,6 +69,11 @@ These definitions are used by all modes. Do not redefine them in a mode section.
 manifest entries; there is no `generators/` folder in an installed project. Install Mode (Step 6)
 and Generator Mode read a generator directly from `<source>/generators/<name>.prompt.md` and
 execute it against this project.
+
+**Stack overlays are source-only.** `<source>/stacks/<stack>/` is never copied into this project and
+has no manifest entries; there is no `stacks/` folder in an installed project. The overlay's
+`notes.md` is only a hint that the `create-build-settings` generator reads directly from
+`<source>/stacks/<chosen-stack>/notes.md` while it runs.
 
 An entry's source location is `<source>/<entry>` if that file exists, otherwise
 `<source>/core/<entry>`. If neither exists, stop and report the manifest/source mismatch.
@@ -117,7 +122,9 @@ not a violation of this step; the rule here is only that the core inputs below a
 and never asked a second time.
 
 1. **Stack overlay.** List the folders under `<source>/stacks/` and ask which one applies. If none
-   fits, the user may choose "none" (skip the overlay; record `"stack": "none"`).
+   fits, the user may choose "none" (no overlay hint; record `"stack": "none"`). The overlay is
+   not installed into the project; it is only read from `<source>/stacks/<chosen-stack>/` during
+   generation (Step 6).
 2. **Project name** (`PROJECT_NAME`) — also used by the knowledge-base generator.
 3. **System description** (`SYSTEM_DESCRIPTION`), **PVD/design-doc paths** (`PVD_PATHS`, or
    `none`), and **code root** (`CODE_ROOT`) — the knowledge-base generator's configuration block.
@@ -140,18 +147,16 @@ Build the full list of destination files using the **Path mapping** in Shared Co
 
 1. For **every file under `<source>/core/`** (walk the whole tree; do not plan only the manifest's
    subset), the destination is its `core/`-stripped path, with a trailing `.template` removed.
-2. For every file under `<source>/stacks/<chosen-stack>/`, the destination is
-   `stacks/<chosen-stack>/<same relative path>` (skip if the stack is `none`). Other stacks'
-   folders are not copied.
-3. For every file under `<source>/data-dictionary-tooling/`, the destination is
+2. For every file under `<source>/data-dictionary-tooling/`, the destination is
    `data-dictionary-tooling/<same relative path>`. This copy is **unconditional**, regardless of
    the user's database engine: the `*.sqlserver.sql` export queries are copied even if the project
    uses a different engine (the DB-engine question is asked later, by the data-dictionary
    generator, so install cannot know it yet). Step 8 tells the user these files may not apply.
-4. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
+3. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
    `{{PROJECT_SPECIFIC_FIXES}}` and `{{STACK_CHECKLIST}}` (wcag-fix-patterns.md only) substitutions
    in Step 5. Those substitutions never apply to `.github/prompts/sync-toolkit.prompt.md` (see
-   Step 5). Generators are not part of this plan at all: they stay in `<source>/generators/`.
+   Step 5). Generators and stack overlays are not part of this plan at all: they stay in
+   `<source>/generators/` and `<source>/stacks/`.
 
 For each planned destination, check whether it already exists in this project. If it does,
 compare it with the content you would write (including the Step 5 substitutions). Identical →
@@ -226,6 +231,10 @@ Each generator ends with a "self-delete this file from `.github/prompts/`" step.
 them from `<source>`, **skip that step** — there is nothing to delete in this project, and you must
 never delete or modify anything inside `<source>`.
 
+`create-build-settings.prompt.md` consults the stack overlay hint by reading
+`<source>/stacks/<chosen-stack>/notes.md` (the Step 2 answer) directly from the toolkit source
+clone; nothing under `stacks/` exists in this project.
+
 The order below was verified against each generator's own prerequisite text:
 
 | # | Generator | Verified prerequisite |
@@ -280,9 +289,9 @@ existing always means the baseline is complete.
 Do **not** run `git add`, `git commit` or `git push`. Print a summary containing:
 
 - Toolkit version and stack installed.
-- Every file created, grouped as: core files, stack overlay, data-dictionary tooling,
-  sync state (`version.json` + baseline file count). Generators are not copied into the project, so
-  there is no generators group.
+- Every file created, grouped as: core files, data-dictionary tooling,
+  sync state (`version.json` + baseline file count). Generators and stack overlays are not copied
+  into the project, so there is no generators group and no stack overlay group.
 - Files skipped or saved as `.toolkit-new` in Step 4.
 - Each generator that ran and its outcome, plus any skipped (e.g. data dictionary). Tell the user
   that any single generator can be re-run later with `/sync-toolkit --source <path> --generator <name>`
@@ -300,10 +309,9 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
   `create-scm-workflow` "no remote yet" value) and remind the user to update it once a remote exists.
 - Files copied from `core/` that were not classified in `manifest.json`.
 - **Completeness check.** When confirming that every Tier 1 manifest entry exists in the project,
-  entries under `stacks/` are expected to be **absent** when the chosen stack is `none` or when
-  they belong to a stack other than the chosen overlay (install copies only the chosen stack). That
-  is correct behavior; do not report it as missing. Generators have no manifest entries and are
-  never expected in the project, so there is nothing to check for them.
+  check only the entries the manifest actually lists. Generators and stack overlays have no
+  manifest entries and are never expected in the project (regardless of which stack was chosen), so
+  there is nothing to check for them.
 - **Database tooling note.** `data-dictionary-tooling/*.sqlserver.sql` is copied unconditionally
   (Step 3), so if the project's database is not SQL Server (or the data dictionary was deferred),
   say these files were copied but may not apply, and may be deleted.
@@ -391,16 +399,13 @@ Never check out, reset, stash or otherwise modify `<source>`'s working tree or b
    `<version>`; if it does not, warn and ask whether to continue.
 4. **Read the target manifest.** Read `<target>/manifest.json`: the Tier 1 `files`, Tier 2
    `files`, Tier 3 `patterns` and the `deprecated` array. These lists, not guesses, define the
-   tiers for the rest of update mode. Skip Tier 1 entries under `stacks/` that do not belong to
-   this project's installed `stack` (Install copied only the chosen stack); if the installed
-   stack is `none`, skip all `stacks/` entries; if the installed stack no longer exists under
-   `<target>/stacks/`, report it and skip the overlay rather than switching stacks.
+   tiers for the rest of update mode.
 
    Build the **target file set** the same way Install Step 3 builds its plan: every file under
    `<target>/core/` (destination = `core/`-stripped path with a trailing `.template` removed),
-   every file under `<target>/stacks/<installed-stack>/`, and every file under
-   `<target>/data-dictionary-tooling/`. Generators under `<target>/generators/` are **not** part of
-   the target file set: they are source-only and never installed into the project. Each file's
+   and every file under `<target>/data-dictionary-tooling/`. Generators under
+   `<target>/generators/` and stack overlays under `<target>/stacks/` are **not** part of the
+   target file set: they are source-only and never installed into the project. Each file's
    tier comes from the
    manifest; a file in the set that the manifest does not list is **unclassified** (report it under
    "Files not classified in manifest.json", exactly as Install does, and do not modify it).
@@ -438,6 +443,11 @@ that is also a Tier 2 file in the *installed* baseline (the user may have custom
   `deprecated`, so they are handled by the rules above (explicit per-file confirmation). If the
   project's `generators/` folder is left empty after confirmed deletions, tell the user it can be
   removed; remove it only on their explicit confirmation.
+- **Legacy `stacks/` copies.** Toolkit versions before stack overlays became source-only copied
+  `stacks/<stack>/notes.md` into the project; the target manifest lists that path in `deprecated`,
+  so it is handled by the rules above (explicit per-file confirmation). If the project's `stacks/`
+  folder is left empty after a confirmed deletion, tell the user it can be removed; remove it only
+  on their explicit confirmation.
 - Do not touch `baseline/` here. A deleted file's baseline entry (if any) is removed by the
   3-Way Merge section's reconciliation (Step 7), which derives it from the target manifest and
   on-disk state, so it is cleaned up even if this run is interrupted right after the deletion.

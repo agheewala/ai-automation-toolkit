@@ -108,12 +108,17 @@ record each distinctly and ask the user which one(s) the ticket workflow's build
   owns**; it is intentionally hand-maintained per-project (like `{{PROJECT_SPECIFIC_FIXES}}` in
   `custom-fixes.md`), so leave it untouched.
   Live detection against the actual repo is the primary and authoritative source for this
-  checklist. As a supplementary hint only, also check whether `stacks/<detected-stack>/notes.md`
-  exists in this package (e.g. `stacks/dotnet-mvc/notes.md`) for the stack identified in
-  `CODE_ROOT`'s `.ai/knowledge-base.md`; if present, read it for example pre-push gate ideas worth
-  confirming against the real codebase. If no matching `stacks/<stack>/notes.md` file exists, skip
-  this step entirely and rely solely on live detection — a missing overlay file must never block
-  or weaken the checklist.
+  checklist. As a supplementary hint only, also check whether
+  `<source>/stacks/<chosen-stack>/notes.md` exists (e.g. `<source>/stacks/dotnet-mvc/notes.md`),
+  where `<source>` is the toolkit source clone (the same `<source>` path used throughout
+  `/sync-toolkit`) and `<chosen-stack>` is the stack overlay chosen during install (or recorded as
+  `stack` in `.ai/.toolkit-sync-state/version.json` when re-run via `--generator`; if neither is
+  available, the stack identified in `CODE_ROOT`'s `.ai/knowledge-base.md`). Read it directly from
+  the toolkit source clone — never from the target project, which does not contain a `stacks/`
+  folder. If present, read it for example pre-push gate ideas worth confirming against the real
+  codebase. If no matching `<source>/stacks/<stack>/notes.md` file exists (or the stack is `none`),
+  skip this step entirely and rely solely on live detection — a missing overlay file must never
+  block or weaken the checklist.
 
 ---
 

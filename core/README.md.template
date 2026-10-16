@@ -88,7 +88,6 @@ README.md                     This guide
 ├── prompts/                  Slash commands: fix-ticket, auto-fix, implement, pr-review, sync-toolkit
 └── skills/                   Reusable implementation patterns (patterns/SKILL.md)
 data-dictionary-tooling/      SQL export queries used to build .ai/data-dictionary/ (may not apply to your database engine)
-stacks/                       Stack-specific hints from the toolkit (only if a stack overlay was chosen)
 ```
 
 `.ai/knowledge-base.md` and `.ai/data-dictionary/` belong to this project — they are generated from

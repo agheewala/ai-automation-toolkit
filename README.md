@@ -36,7 +36,8 @@ already-installed project (for example after a schema change):
 - `core/` — generic agents, prompts, governance/behavior templates. Tiered per `manifest.json`.
 - `generators/` — `create-*.prompt.md` commands that tailor `core/` output to a specific project
   (source-only: read from this clone during install and `--generator` re-runs, never installed).
-- `stacks/` — per-language-stack deltas layered on top of `core/` during install.
+- `stacks/` — per-language-stack hints (`notes.md`) consulted during generation
+  (source-only: read from this clone, never installed).
 - `data-dictionary-tooling/` — DB export SQL (SQL Server only in v1) + the
   `generators/create-data-dictionary.prompt.md` command that turns exported CSVs into markdown.
 - `manifest.json` — the file tier classification + deprecated-file list that drives
