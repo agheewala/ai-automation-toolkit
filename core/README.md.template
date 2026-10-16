@@ -101,7 +101,11 @@ are read from the toolkit clone's git history (so the clone must still have thos
 tags), which is what lets updates merge changes without overwriting your customizations. Deleting
 it makes the next sync treat this project as not installed; never hand-edit it — after reconciling
 a file by hand, record it with `/sync-toolkit --source <path> --mark-reconciled <manifest-path>`
-instead. Commit it with the rest of `.ai/`.
+instead. The same command fixes the opposite case: if you discard or revert a toolkit-managed file
+to an **older** state outside the tool (for example with `git checkout` of an earlier commit), its
+recorded version still names the newer one and a later update would silently skip the changes the
+reverted file never received, so run it with the **older** version to rewind the record to match
+the file's actual content. Commit it with the rest of `.ai/`.
 
 The toolkit's generators (the commands that build `.ai/knowledge-base.md`, the governance files,
 and so on) are **not** installed in this project; they are read straight from your toolkit
