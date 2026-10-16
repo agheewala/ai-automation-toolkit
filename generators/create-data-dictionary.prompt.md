@@ -62,6 +62,14 @@ matter — the next step parses the CSV by header name):
    → export to `.ai/data-dictionary/_export/procedures.csv`
    → headers: `ProcedureName, FullyQualifiedName, CreatedDate, ModifiedDate, GeneratedScript`
 
+**Do not just name the file paths — read both `.sql` files with `read_file` and paste their full,
+exact contents into the chat response**, each in its own fenced ```sql code block, clearly labeled
+("Schema catalog export — run this, then save the result as `.ai/data-dictionary/_export/schema.csv`"
+and "Stored procedure export — run this, then save the result as
+`.ai/data-dictionary/_export/procedures.csv`"). The user should be able to copy each query directly
+out of the chat without needing to go find the file themselves — the file paths above are for
+reference (e.g. if they want to open them in SSMS directly), not the only way the query is given to them.
+
 Wait for the user to confirm both CSV files exist before continuing. Do not guess their contents.
 
 ---

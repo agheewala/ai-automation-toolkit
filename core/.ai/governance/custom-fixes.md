@@ -70,8 +70,8 @@ The following violation types are **never fixed** by this workflow:
 
 | Field | Value |
 |:------|:------|
-| **Created** | update this date when this file is first populated for a project |
-| **Last Updated** | update this date whenever a new fix is added |
+| **Created** | *(not yet set — fill in the date this file is first populated with a real fix)* |
+| **Last Updated** | *(not yet set — update this date whenever a new fix is added)* |
 | **Scope** | Global — all modules in this project |
 
 ---

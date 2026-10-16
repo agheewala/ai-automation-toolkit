@@ -39,7 +39,9 @@ These rules are **non-negotiable** for every UI change in this project.
 > functions, modal/dialog patterns, skip-link markup), JavaScript accessibility conventions, and
 > CSS/theme rules (inline-style policy, custom CSS file location, theme-folder propagation rules,
 > high-contrast/greyscale theme handling, focus-outline conventions) — do not hardcode any single
-> stack's helpers or theme system in this `core/` file.
+> stack's helpers or theme system in this `core/` file. A good starting point: the toolkit source
+> clone's `stacks/<stack>/notes.md`, if one exists for this project's stack, can be consulted
+> manually (it is not installed into this project — see the toolkit's own README for its location).
 
 ### Pre-Push Accessibility Checklist
 
