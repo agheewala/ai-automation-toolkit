@@ -6,28 +6,39 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 ### Changed
 - Sync state is now a single file, `.ai/.toolkit-sync-state.json` (`toolkitVersion`, `stack`,
-  `syncedAt`, and a per-Tier-2-file `files` map with `lastUpdatedAt` / `lastMergeResult`),
-  replacing `.ai/.toolkit-sync-state/version.json` + the `baseline/` copy of every Tier 2 file.
-  It is always written atomically (temp file, verify, rename).
-- Update Mode no longer reads a persisted baseline: the merge base is fetched on demand from the
-  toolkit's git history for the single recorded `toolkitVersion` (`<installed>`, extracted exactly
-  like `<target>`). If that version's tag is missing from the toolkit clone the run stops and the
-  user chooses between aborting and treating every Tier 2 file as having no merge base.
+  `syncedAt`, and a per-Tier-2-file `files` map with `baseVersion` / `lastUpdatedAt` /
+  `lastMergeResult`), replacing `.ai/.toolkit-sync-state/version.json` + the `baseline/` copy of
+  every Tier 2 file. It is always written atomically (temp file, verify, rename).
+- Update Mode no longer reads a persisted baseline: each file's merge base is fetched on demand
+  from the toolkit's git history at that file's own `baseVersion` (extracted exactly like
+  `<target>`).
 - The "Baseline reconciliation contract" is removed. Update Mode step numbers are unchanged; in the
   3-Way Merge section old Step 6 (reconcile `baseline/`) and old Step 7 (write `version.json`) are
   replaced by one Step 6 (write the state file), and old Steps 8 and 9 are now Steps 7 and 8.
 - Tag lookup tolerates a leading `v` (`VERSION` holds `1.3.0`, tags are `v1.3.0`).
-- Projects installed by an older toolkit (legacy `version.json` + `baseline/` folder) are
-  recognised on update and migrated in memory: each file in the legacy `baseline/` becomes a
-  `migrated` entry (`lastUpdatedAt` = `version.json`'s `syncedAt`), and for that one run the
-  legacy baseline file is that file's `BASE`; the legacy folder is then offered for removal.
-- `toolkitVersion` only advances to the target when every Tier 2 file ended the run resolved
-  (`unchanged`, `clean-merged`, `not-present`, `manually-reconciled`). If any file is `error`,
-  conflicted, `no-merge-base`, UTF-16/32-blocked or marker-guard-blocked, it is held back at the
-  old value so those files keep their true common ancestor and are retried on the next run
-  (already-merged files re-merge as no-ops). Unresolved files' `lastUpdatedAt` is not bumped; the
-  final report names every blocking file. Recovery option 3 now records `manually-reconciled`
-  (renamed from `resolved-manually`) for one file and does not advance `toolkitVersion`.
+- Sync state tracks a version pointer **per Tier 2 file** (`baseVersion`, alongside
+  `lastUpdatedAt` / `lastMergeResult`); the top-level `toolkitVersion` is now informational only
+  ("last version a run attempted") and is written at the end of every install/update run. A file's
+  `baseVersion` advances when its diff was delivered into the file (`unchanged`, `clean-merged`,
+  not present, **and a fresh conflict**, whose markers *are* the delivered diff) and stays put when
+  it was never delivered (no merge base, UTF-16/32, error, or markers left from an earlier run).
+  This replaces the whole-project hold-back rule: a conflict the user resolves by hand, in any
+  way, no longer re-conflicts on every later run. No template content is stored, only the version
+  string.
+- Update Mode extracts the base template once **per distinct `baseVersion`** in use (staging
+  folders cleaned up at the end). If a tracked version's tag no longer exists in the toolkit clone,
+  only the files at that version become `NO MERGE BASE` for the run (the clone's working tree is
+  never used as a stand-in for a historical version); the run is not blocked.
+- New `/sync-toolkit --source <path> --mark-reconciled <manifest-path>` records a hand-reconciled
+  file (asks for the version, checks the marker guard, atomic single-entry write). It replaces the
+  old "edit the state file by hand" recovery options.
+- Legacy `version.json` + `baseline/` projects migrate per file (`baseVersion` = the legacy
+  version, `lastMergeResult` = `migrated`); the legacy `baseline/` folder keeps serving as `BASE`
+  for files that have not caught up yet and is only offered for removal once every migrated file
+  has advanced past the migration version.
+- State-file write verification now also checks there is no BOM and every entry has `baseVersion`;
+  any scratch-copy, normalization or write-back failure for a file is classified as `error`; all
+  relative paths assume the current directory is the project root.
 - Version strings are compared ignoring a leading `v` everywhere, and `toolkitVersion` is always
   stored in bare form.
 - `core/.ai/behavior/decision-rules.md` gains a rule that the ticket workflow and ad-hoc search
