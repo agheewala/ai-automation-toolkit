@@ -18,7 +18,18 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   replaced by one Step 6 (write the state file), and old Steps 8 and 9 are now Steps 7 and 8.
 - Tag lookup tolerates a leading `v` (`VERSION` holds `1.3.0`, tags are `v1.3.0`).
 - Projects installed by an older toolkit (legacy `version.json` + `baseline/` folder) are
-  recognised on update; the legacy folder is ignored and offered for removal at the end.
+  recognised on update and migrated in memory: each file in the legacy `baseline/` becomes a
+  `migrated` entry (`lastUpdatedAt` = `version.json`'s `syncedAt`), and for that one run the
+  legacy baseline file is that file's `BASE`; the legacy folder is then offered for removal.
+- `toolkitVersion` only advances to the target when every Tier 2 file ended the run resolved
+  (`unchanged`, `clean-merged`, `not-present`, `manually-reconciled`). If any file is `error`,
+  conflicted, `no-merge-base`, UTF-16/32-blocked or marker-guard-blocked, it is held back at the
+  old value so those files keep their true common ancestor and are retried on the next run
+  (already-merged files re-merge as no-ops). Unresolved files' `lastUpdatedAt` is not bumped; the
+  final report names every blocking file. Recovery option 3 now records `manually-reconciled`
+  (renamed from `resolved-manually`) for one file and does not advance `toolkitVersion`.
+- Version strings are compared ignoring a leading `v` everywhere, and `toolkitVersion` is always
+  stored in bare form.
 - `core/.ai/behavior/decision-rules.md` gains a rule that the ticket workflow and ad-hoc search
   must never read, reference or edit `.ai/.toolkit-sync-state.json`.
 
