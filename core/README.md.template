@@ -56,6 +56,35 @@ The workflow is configured to run on **{{REQUIRED_MODEL_LIST}}**; do not switch 
 
 ---
 
+## Command Reference
+
+Every command this package ships, what it's for, and how to run it from VS Code vs. GitHub
+Copilot CLI (the CLI does not discover `.github/prompts/*.prompt.md` slash commands at all — it
+only discovers `.github/agents/*.agent.md` agents, so every VS Code-only command below has an
+agent-based equivalent, except where noted as a current gap):
+
+| Command | What it's for | VS Code | GitHub Copilot CLI |
+|---|---|---|---|
+| `fix ticket` (plain text, not a slash command) | Full ticket-to-PR automation: pre-code analysis, branch, implement, build, push, PR | Paste directly into Agent mode chat | `/agent` → **Ticket Processor**, or `copilot --agent="Ticket Processor" --prompt "fix ticket\n\nTicketID: ...\nType: ...\nDescription: ..."` |
+| `/fixada-file`, `/fixada-folder`, `/fixada-results`, `/fixada-preventive` | Accessibility (WCAG/ADA) fix workflow from a report file, folder, URL, or a pre-scan of code | Type directly in Agent mode chat | Same **Ticket Processor** agent — it loads the same ADA governance files as part of its context load |
+| `/auto-fix` | Optional explicit entry point that detects whether you typed a ticket or an ADA command and routes to the matching workflow | VS Code slash command | Not available (no `.prompt.md` discovery) — use the **Ticket Processor** agent directly instead |
+| `/pr-review <PR URL>` | Two-phase PR review: code-quality observations plus governance/workflow compliance | VS Code slash command | **Not yet available** — no CLI agent wrapper exists for this one yet; run it from VS Code |
+| `/sync-toolkit --source <path> --mode install` | First-time install of this toolkit into a project | VS Code slash command | `/agent` → **Sync Toolkit**, or `copilot --agent="Sync Toolkit" --prompt "--source <path> --mode install"` |
+| `/sync-toolkit --source <path> --version <tag>` | Update an already-installed project to a newer toolkit version (3-way merge; never overwrites your customizations) | VS Code slash command | Same **Sync Toolkit** agent, same arguments in `--prompt` |
+| `/sync-toolkit --source <path> --generator <name>` | Re-run one generator later (e.g. refresh the data dictionary after a schema change) without a full update | VS Code slash command | Same **Sync Toolkit** agent |
+| `/sync-toolkit --source <path> --mark-reconciled <manifest-path>` | Record that you've manually resolved a merge conflict in one Tier 2 file, so the next update doesn't re-flag it | VS Code slash command | Same **Sync Toolkit** agent |
+
+Notes:
+- The **Ticket Processor** and **Sync Toolkit** agents are the same underlying instructions as
+  their VS Code slash commands — just discovered differently. In VS Code, prefer the slash command.
+- `.github/prompts/implement.prompt.md` is intentionally not in this table: it is an internal
+  reference the ticket/domain-engineer workflow loads during implementation, not a command you
+  invoke yourself.
+- See [`AGENTS.md`](AGENTS.md) "Running `fix ticket` from GitHub Copilot CLI" for full CLI setup
+  (model pinning, MCP server registration) before relying on any of the CLI column above.
+
+---
+
 ## Which Chat Mode to Use
 
 | Work | Chat mode |
@@ -172,7 +201,8 @@ servers there if you run the workflow from the CLI. See [`AGENTS.md`](AGENTS.md)
 
 - **A command (`/fix-ticket`, `/fixada-*`, `/sync-toolkit`) is missing** — reload the Copilot chat
   window (or VS Code) so it re-reads `.github/prompts/`. Slash commands from `.github/prompts/`
-  exist only in VS Code, not in Copilot CLI; use the `Ticket Processor` agent there instead.
+  exist only in VS Code, not in Copilot CLI; from the CLI, use the `Ticket Processor` agent instead
+  of `/fix-ticket`/`/auto-fix`/`/fixada-*`, or the `Sync Toolkit` agent instead of `/sync-toolkit`.
 - **`fix ticket` cannot fetch the ticket** — it proceeds based on the description text you pasted;
   include enough detail in `Description:`, or check your MCP configuration.
 - **The workflow stops after the analysis** — you are probably in Plan or Ask mode; switch to

@@ -1,12 +1,11 @@
 {
-  "toolkitVersion": "1.4.0",
+  "toolkitVersion": "2.0.0",
   "tiers": {
     "1": {
       "description": "Pure framework — blind overwrite on update, no jurisdiction-specific content ever lives here",
       "files": [
         ".github/prompts/sync-toolkit.prompt.md",
-        "data-dictionary-tooling/export-schema-catalog.sqlserver.sql",
-        "data-dictionary-tooling/export-stored-procedures.sqlserver.sql"
+        ".github/agents/sync-toolkit.agent.md"
       ]
     },
     "2": {
@@ -44,7 +43,7 @@
       ]
     }
   },
-  "notes": "generators/ and stacks/ are intentionally source-only (never installed into projects); re-run one generator with /sync-toolkit --source <path> --generator <name>. The deprecated entries below are copies installed by toolkit versions before generators and stack overlays became source-only.",
+  "notes": "generators/, stacks/ and data-dictionary-tooling/ are intentionally source-only (never installed into projects); re-run the data-dictionary generator with /sync-toolkit --source <path> --generator create-data-dictionary. The deprecated entries below are copies installed by toolkit versions before generators, stack overlays and data-dictionary tooling became source-only.",
   "deprecated": [
     "generators/create-build-settings.prompt.md",
     "generators/create-coding-standards.prompt.md",
@@ -53,6 +52,8 @@
     "generators/create-implementation-patterns.prompt.md",
     "generators/create-knowledge-base.prompt.md",
     "generators/create-scm-workflow.prompt.md",
-    "stacks/dotnet-mvc/notes.md"
+    "stacks/dotnet-mvc/notes.md",
+    "data-dictionary-tooling/export-schema-catalog.sqlserver.sql",
+    "data-dictionary-tooling/export-stored-procedures.sqlserver.sql"
   ]
 }

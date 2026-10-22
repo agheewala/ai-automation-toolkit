@@ -197,6 +197,20 @@ so ticket-type rules, STOP/FLAG logic, build scope, and reviewer counts behave t
 
 - **Ticket Processor** — Fully automated ticket-to-PR workflow
 - **Domain Engineer** — Domain-aware code implementation and review
+- **Sync Toolkit** — CLI-accessible wrapper for `/sync-toolkit` (install/update the toolkit, run a
+  generator, or mark a file reconciled) — see note below
+
+> **`/sync-toolkit` from the CLI:** same limitation as `/fix-ticket`/`/auto-fix` above — the slash
+> command is VS Code-only. From the CLI, use the **Sync Toolkit** agent instead (`/agent` and pick
+> it, or `copilot --agent="Sync Toolkit" --prompt "--source <path> --version <tag>"`); it reads and
+> runs `.github/prompts/sync-toolkit.prompt.md`'s instructions verbatim.
+
+> **`/pr-review` has no CLI agent yet** — unlike the commands above, there is currently no agent
+> wrapper for it, so PR review only runs from VS Code. Everything else in this file's "Fully
+> Automated Workflow" section has a CLI path.
+
+See [README.md](README.md#command-reference) for a single table of every command this package
+ships, what each is for, and its VS Code vs. CLI invocation side by side.
 
 ---
 

@@ -71,8 +71,7 @@ These definitions are used by all modes. Do not redefine them in a mode section.
 | Manifest entry | Source location | Location in this project |
 |---|---|---|
 | Tier 2 entries (e.g. `.github/agents/ticket-processor.agent.md`, `AGENTS.md.template`, `README.md.template`) | `<source>/core/<entry>` | `<entry>`, with a trailing `.template` suffix stripped (`AGENTS.md.template` → `AGENTS.md`, `README.md.template` → `README.md`, `.github/copilot-instructions.md.template` → `.github/copilot-instructions.md`) |
-| Tier 1 entries starting `data-dictionary-tooling/` | `<source>/<entry>` | `<entry>` (same relative path, no stripping) |
-| Tier 1 entries found under `core/` (today: `.github/prompts/sync-toolkit.prompt.md`) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
+| Tier 1 entries (today: `.github/prompts/sync-toolkit.prompt.md`, `.github/agents/sync-toolkit.agent.md`) | `<source>/core/<entry>` | `<entry>`, `.template` stripped |
 | Tier 3 patterns (`.ai/knowledge-base.md`, `.ai/data-dictionary/**`) | never copied | produced by generators; **never touched by sync** |
 
 **Generators are source-only.** `<source>/generators/` is never copied into this project and has no
@@ -85,8 +84,13 @@ has no manifest entries; there is no `stacks/` folder in an installed project. T
 `notes.md` is only a hint that the `create-build-settings` generator reads directly from
 `<source>/stacks/<chosen-stack>/notes.md` while it runs.
 
-An entry's source location is `<source>/<entry>` if that file exists, otherwise
-`<source>/core/<entry>`. If neither exists, stop and report the manifest/source mismatch.
+**Data-dictionary tooling is source-only.** `<source>/data-dictionary-tooling/` is never copied
+into this project and has no manifest entries; there is no `data-dictionary-tooling/` folder in an
+installed project. The `create-data-dictionary` generator reads its two export queries directly
+from `<source>/data-dictionary-tooling/*.sqlserver.sql` while it runs and prints their full content
+into chat — nothing is ever copied there first.
+
+Every Tier 1 entry is found under `core/` (`<source>/core/<entry>`, `.template` suffix stripped).
 
 **Whole-`core/` rule.** Install copies **every** file under `<source>/core/` — not only the files
 named in `manifest.json`. A `core/` file absent from the manifest is a toolkit bug: still copy it,
@@ -269,16 +273,13 @@ Build the full list of destination files using the **Path mapping** in Shared Co
 
 1. For **every file under `<source>/core/`** (walk the whole tree; do not plan only the manifest's
    subset), the destination is its `core/`-stripped path, with a trailing `.template` removed.
-2. For every file under `<source>/data-dictionary-tooling/`, the destination is
-   `data-dictionary-tooling/<same relative path>`. This copy is **unconditional**, regardless of
-   the user's database engine: the `*.sqlserver.sql` export queries are copied even if the project
-   uses a different engine (the DB-engine question is asked later, by the data-dictionary
-   generator, so install cannot know it yet). Step 8 tells the user these files may not apply.
-3. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
+2. Files are written **byte-for-byte except for** the `{{PROJECT_NAME}}`, `{{REQUIRED_MODEL_LIST}}`,
    `{{PROJECT_SPECIFIC_FIXES}}` and `{{STACK_CHECKLIST}}` (wcag-fix-patterns.md only) substitutions
    in Step 5. Those substitutions never apply to `.github/prompts/sync-toolkit.prompt.md` (see
-   Step 5). Generators and stack overlays are not part of this plan at all: they stay in
-   `<source>/generators/` and `<source>/stacks/`.
+   Step 5). Generators, stack overlays and data-dictionary tooling are not part of this plan at
+   all: they stay in `<source>/generators/`, `<source>/stacks/` and
+   `<source>/data-dictionary-tooling/` respectively, and are only ever read directly from
+   `<source>` when the `create-data-dictionary` generator runs (Step 6, #7).
 
 For each planned destination, check whether it already exists in this project. If it does,
 compare it with the content you would write (including the Step 5 substitutions). Identical →
@@ -367,15 +368,26 @@ The order below was verified against each generator's own prerequisite text:
 | 4 | `create-scm-workflow.prompt.md` | Requires `.ai/knowledge-base.md` only; by convention runs after #2 and #3. |
 | 5 | `create-implementation-patterns.prompt.md` | Requires `.ai/knowledge-base.md` only (it samples the codebase itself and checks `implement.prompt.md` for leftovers). |
 | 6 | `create-domain-agent.prompt.md` | Requires `.ai/knowledge-base.md`; reads `.ai/governance/coding-standards.md` if present, so it must run after #2. |
-| 7 | `create-data-dictionary.prompt.md` | No generator dependency, but needs user-supplied CSV exports from the user's database (it will pause and ask). Runs last. |
+| 7 | `create-data-dictionary.prompt.md` | No generator dependency, but needs user-supplied CSV exports from the user's database (it will pause and ask). Runs last, and only if not already present (see the rule below). |
 
 Rules for this order:
 
 - #1 first, always. #2 before #3. #2 before #6.
 - #4 and #5 may run at any point after #1; the table order is the recommended one.
-- #7 is last because it pauses for user action (database engine question, CSV exports). If the user
-  wants to defer it, skip it, continue to Step 7, and record "data dictionary: not generated" in
-  the report with the instruction to run it later via
+- **#7's "already present" check.** Before running #7, check whether `.ai/data-dictionary/`
+  already contains generated content (any of `db-schema-dictionary.md`, `stored-procedures.md`,
+  `stored-procedure-dataflows.md`, `README.md` — the four files this generator writes). This is
+  not expected on a true from-scratch install, but can happen when adopting a project that already
+  had a hand-maintained data dictionary, or when re-running `--mode install` over an existing
+  install (Step 4). If any of the four files already exist, **do not run the generator and do not
+  ask the user anything about it** — skip it silently and record "data dictionary: already
+  present, not regenerated — run `/sync-toolkit --source <path> --generator create-data-dictionary`
+  to refresh it" in the Step 8 report. Only when none of the four files exist does this install run
+  the generator normally (it asks the database-engine question, prints the export queries in chat,
+  and waits for the CSVs, exactly as Generator Mode does for an explicit re-run).
+- #7 is last because it pauses for user action (database engine question, CSV exports). If the
+  generator runs and the user wants to defer it, skip it, continue to Step 7, and record "data
+  dictionary: not generated" in the report with the instruction to run it later via
   `/sync-toolkit --source <path> --generator create-data-dictionary`. If the user's
   database is not SQL Server, that generator stops itself with a documented known-gap message —
   relay that message; this is not an install failure.
@@ -418,11 +430,13 @@ confirm the `files` key set equals the manifest's Tier 2 set exactly.
 Do **not** run `git add`, `git commit` or `git push`. Print a summary containing:
 
 - Toolkit version and stack installed.
-- Every file created, grouped as: core files, data-dictionary tooling,
-  sync state (`.ai/.toolkit-sync-state.json`, with its Tier 2 `files` entry count). Generators and stack overlays are not copied
-  into the project, so there is no generators group and no stack overlay group.
+- Every file created, grouped as: core files,
+  sync state (`.ai/.toolkit-sync-state.json`, with its Tier 2 `files` entry count). Generators,
+  stack overlays and data-dictionary tooling are not copied into the project, so there is no
+  generators group, no stack overlay group and no data-dictionary tooling group.
 - Files skipped or saved as `.toolkit-new` in Step 4.
-- Each generator that ran and its outcome, plus any skipped (e.g. data dictionary). Tell the user
+- Each generator that ran and its outcome, plus any skipped (e.g. data dictionary deferred, or
+  already present — see Step 6's "already present" check). Tell the user
   that any single generator can be re-run later with `/sync-toolkit --source <path> --generator <name>`
   (see Generator Mode).
 - Placeholders still pending: search the project's files only for tokens matching this toolkit's
@@ -437,12 +451,9 @@ Do **not** run `git add`, `git commit` or `git push`. Print a summary containing
   `create-scm-workflow` "no remote yet" value) and remind the user to update it once a remote exists.
 - Files copied from `core/` that were not classified in `manifest.json`.
 - **Completeness check.** When confirming that every Tier 1 manifest entry exists in the project,
-  check only the entries the manifest actually lists. Generators and stack overlays have no
-  manifest entries and are never expected in the project (regardless of which stack was chosen), so
-  there is nothing to check for them.
-- **Database tooling note.** `data-dictionary-tooling/*.sqlserver.sql` is copied unconditionally
-  (Step 3), so if the project's database is not SQL Server (or the data dictionary was deferred),
-  say these files were copied but may not apply, and may be deleted.
+  check only the entries the manifest actually lists. Generators, stack overlays and
+  data-dictionary tooling have no manifest entries and are never expected in the project
+  (regardless of which stack was chosen), so there is nothing to check for them.
 - A closing instruction: review the changes and commit them in this repo yourself; this command
   made no commits.
 
@@ -601,9 +612,9 @@ otherwise modify `<source>`'s working tree or branches.
    tiers for the rest of update mode.
 
    Build the **target file set** the same way Install Step 3 builds its plan: every file under
-   `<target>/core/` (destination = `core/`-stripped path with a trailing `.template` removed),
-   and every file under `<target>/data-dictionary-tooling/`. Generators under
-   `<target>/generators/` and stack overlays under `<target>/stacks/` are **not** part of the
+   `<target>/core/` (destination = `core/`-stripped path with a trailing `.template` removed).
+   Generators under `<target>/generators/`, stack overlays under `<target>/stacks/` and
+   data-dictionary tooling under `<target>/data-dictionary-tooling/` are **not** part of the
    target file set: they are source-only and never installed into the project. Each file's
    tier comes from the
    manifest; a file in the set that the manifest does not list is **unclassified** (report it under
@@ -698,6 +709,12 @@ user may have customized it.
   so it is handled by the rules above (explicit per-file confirmation). If the project's `stacks/`
   folder is left empty after a confirmed deletion, tell the user it can be removed; remove it only
   on their explicit confirmation.
+- **Legacy `data-dictionary-tooling/` copies.** Toolkit versions before data-dictionary tooling
+  became source-only copied `data-dictionary-tooling/export-*.sqlserver.sql` into the project; the
+  target manifest lists those paths in `deprecated`, so they are handled by the rules above
+  (explicit per-file confirmation). If the project's `data-dictionary-tooling/` folder is left
+  empty after confirmed deletions, tell the user it can be removed; remove it only on their
+  explicit confirmation.
 - A deleted or kept deprecated file needs no sync-state handling here: the state file's `files` map
   is rebuilt from the target Tier 2 set when it is written (3-Way Merge Step 6), so a deprecated
   path never appears in it.

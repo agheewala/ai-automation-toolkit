@@ -44,8 +44,6 @@ Ask the user directly: *"Which database engine does this project use? (SQL Serve
   `.sql` files, and do not attempt to approximate the SQL Server queries for a different engine's
   system catalog. Suggest the user check back in a future toolkit release, or contribute their own
   export query back to `data-dictionary-tooling/` if they have one. End the generator run here.
-  Also mention that `data-dictionary-tooling/*.sqlserver.sql` were installed unconditionally and
-  do not apply to their engine, so they can be ignored or deleted.
 
 ---
 
@@ -55,12 +53,16 @@ Tell the user to run the two export queries shipped in this toolkit against thei
 save each result set to CSV with **exactly** these headers (column names, spelling, and casing
 matter — the next step parses the CSV by header name):
 
-1. `data-dictionary-tooling/export-schema-catalog.sqlserver.sql`
+1. `<source>/data-dictionary-tooling/export-schema-catalog.sqlserver.sql`
    → export to `.ai/data-dictionary/_export/schema.csv`
    → headers: `DB Name, Table Name, Column #, PK, Column Name, Data Type, Null, Column Description, Default, Table Description`
-2. `data-dictionary-tooling/export-stored-procedures.sqlserver.sql`
+2. `<source>/data-dictionary-tooling/export-stored-procedures.sqlserver.sql`
    → export to `.ai/data-dictionary/_export/procedures.csv`
    → headers: `ProcedureName, FullyQualifiedName, CreatedDate, ModifiedDate, GeneratedScript`
+
+`<source>` is the toolkit clone path this run was given (the same `--source` passed to
+`/sync-toolkit`); these two `.sql` files are never copied into this project, only read directly
+from the clone.
 
 **Do not just name the file paths — read both `.sql` files with `read_file` and paste their full,
 exact contents into the chat response**, each in its own fenced ```sql code block, clearly labeled

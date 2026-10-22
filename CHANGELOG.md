@@ -3,6 +3,51 @@
 All notable changes to the AI Automation Toolkit are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.0.0] - 2026-10-19
+### Added
+- New Tier 1 file `.github/agents/sync-toolkit.agent.md` — a thin, CLI-discoverable wrapper around
+  the `/sync-toolkit` slash command. GitHub Copilot CLI does not discover
+  `.github/prompts/*.prompt.md` files at all, so `/sync-toolkit` was previously VS Code-only; this
+  agent reads and executes `sync-toolkit.prompt.md`'s instructions verbatim (all four modes:
+  install, update, generator, mark-reconciled) and is picked up by both VS Code and the CLI like
+  `ticket-processor.agent.md` / `domain-engineer.agent.md` already are. In VS Code, the slash
+  command remains the preferred entry point; the agent is the same underlying instructions.
+- `AGENTS.md.template` "Available Agents" list now includes **Sync Toolkit**, and gained a short
+  note alongside the existing "Running `fix ticket` from GitHub Copilot CLI" section pointing out
+  that `/sync-toolkit` has the same CLI discovery limitation and the same agent-based workaround.
+- `README.md.template` Troubleshooting section now mentions the `Sync Toolkit` agent as the CLI
+  alternative when the `/sync-toolkit` slash command is unavailable, alongside the existing
+  `Ticket Processor` mention for the other commands.
+- New **Command Reference** table in `README.md.template` listing every shipped command
+  (`fix ticket`, `/fixada-*`, `/auto-fix`, `/pr-review`, all four `/sync-toolkit` modes), what each
+  is for, and its VS Code slash command vs. GitHub Copilot CLI agent invocation side by side —
+  including the two previously-undocumented commands (`/implement` deliberately excluded, as it is
+  an internal reference prompt, not a user-invoked command) and the `/pr-review` CLI gap (no agent
+  wrapper exists for it yet). The toolkit's own root `README.md` gained a matching "Using this from
+  GitHub Copilot CLI" section plus a "Recording a hand-reconciled file" (`--mark-reconciled`)
+  section, both previously undocumented there. `AGENTS.md.template` now links to the README's
+  Command Reference and notes the `/pr-review` CLI gap alongside its existing CLI sections.
+
+### Changed
+- Major version bump to mark this as a fresh, complete baseline release — toolkit version 2.0.0
+  is the version all new jurisdiction installs and the next round of existing-project updates
+  (including DC, still on v1.2.0) should target.
+- `data-dictionary-tooling/` is now source-only, the same pattern already used for `generators/`
+  and `stacks/`: its two `*.sqlserver.sql` export queries are no longer copied into installed
+  projects at all. The `create-data-dictionary` generator now reads them directly from
+  `<source>/data-dictionary-tooling/` and prints their full content into chat, same as before —
+  only the install-time copy is removed. The two files move from Tier 1 `files` to `deprecated` in
+  `manifest.json` so existing installs (pre-2.0.0) get them flagged for confirmed removal on their
+  next update.
+- Install Mode no longer auto-runs the data-dictionary generator unconditionally: it first checks
+  whether `.ai/data-dictionary/` already has generated content (adopting a project that already
+  hand-maintained one, or a re-run of `--mode install`). If so, the generator is skipped silently
+  — no SQL query shown, no CSV prompt — and the report simply notes the data dictionary is already
+  present and names the `--generator create-data-dictionary` command to refresh it on request.
+  Explicitly running that command (Generator Mode) always runs the full procedure (shows the
+  queries, asks for CSVs) regardless of what already exists — that explicit command is the user's
+  signal to (re)generate. Update Mode was already unaffected (it never auto-runs generators).
+
 ## [1.4.0] - 2026-10-16
 ### Changed
 - Sync state is now a single file, `.ai/.toolkit-sync-state.json` (`toolkitVersion`, `stack`,
